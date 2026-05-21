@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Bookshelf{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#fdf8f0',
+              100: '#faefd8',
+              200: '#f5dba8',
+              300: '#eec270',
+              400: '#e5a03a',
+              500: '#d4841f',
+              600: '#b86818',
+              700: '#954f17',
+              800: '#7a4019',
+              900: '#65351a',
+            }
+          },
+          fontFamily: {
+            serif: ['Georgia', 'Cambria', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .progress-bar { transition: width 0.4s ease; }
+    .card-hover { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px -8px rgba(0,0,0,0.15); }
+    .flash-success { animation: slideDown 0.3s ease; }
+    @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</head>
+<body class="bg-brand-50 min-h-screen">
+
+  {% if session.user_id %}
+  <!-- Navigation -->
+  <nav class="bg-white border-b border-brand-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2 font-serif text-xl font-bold text-brand-800">
+          <span class="text-2xl">📚</span> Bookshelf
+        </a>
+        <!-- Nav links -->
+        <div class="hidden md:flex items-center gap-1">
+          <a href="{{ url_for('dashboard') }}"
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             {% if request.endpoint == 'dashboard' %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            Dashboard
+          </a>
+          <a href="{{ url_for('books_index') }}"
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             {% if request.endpoint in ['books_index','books_add','books_detail'] %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            My Shelf
+          </a>
+          <a href="{{ url_for('reels_index') }}"
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             {% if 'reels' in request.endpoint %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            📽️ Reels
+          </a>
+          <a href="{{ url_for('clubs_index') }}"
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             {% if 'clubs' in request.endpoint %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            📖 Clubs
+          </a>
+          <a href="{{ url_for('friends_index') }}"
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             {% if 'friends' in request.endpoint %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            Friends
+          </a>
+        </div>
+        <!-- User menu -->
+        <div class="flex items-center gap-3">
+          <a href="{{ url_for('books_add') }}"
+             class="hidden md:flex items-center gap-1 bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+            + Add Book
+          </a>
+          <div class="relative group">
+            <button class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+              <div class="w-7 h-7 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-xs">
+                {{ session.display_name[0].upper() }}
+              </div>
+              <span class="hidden md:block">{{ session.display_name }}</span>
+            </button>
+            <div class="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+              <a href="{{ url_for('auth_logout') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-xl">
+                Sign out
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Mobile bottom nav -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-50">
+      <a href="{{ url_for('dashboard') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'dashboard' %}text-brand-700{% else %}text-gray-500{% endif %}">
+        <span class="text-lg">🏠</span> Home
+      </a>
+      <a href="{{ url_for('books_index') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if 'books' in request.endpoint %}text-brand-700{% else %}text-gray-500{% endif %}">
+        <span class="text-lg">📚</span> Shelf
+      </a>
+      <a href="{{ url_for('reels_index') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if 'reels' in request.endpoint %}text-brand-700{% else %}text-gray-500{% endif %}">
+        <span class="text-lg">📽️</span> Reels
+      </a>
+      <a href="{{ url_for('clubs_index') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if 'clubs' in request.endpoint %}text-brand-700{% else %}text-gray-500{% endif %}">
+        <span class="text-lg">💬</span> Clubs
+      </a>
+      <a href="{{ url_for('friends_index') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if 'friends' in request.endpoint %}text-brand-700{% else %}text-gray-500{% endif %}">
+        <span class="text-lg">👥</span> Friends
+      </a>
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="fixed top-20 right-4 z-50 flex flex-col gap-2" id="flash-container">
+        {% for category, message in messages %}
+          <div class="flash-success flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium
+            {% if category == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">
+            <span>{% if category == 'error' %}⚠️{% else %}✓{% endif %}</span>
+            {{ message }}
+            <button onclick="this.parentElement.remove()" class="ml-2 opacity-60 hover:opacity-100">✕</button>
+          </div>
+        {% endfor %}
+      </div>
+      <script>setTimeout(() => { const c = document.getElementById('flash-container'); if(c) c.remove(); }, 4000);</script>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Main content -->
+  <main class="{% if session.user_id %}pb-16 md:pb-0{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

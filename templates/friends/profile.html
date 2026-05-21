@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.display_name }} — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <a href="{{ url_for('friends_index') }}" class="text-gray-400 hover:text-gray-600 text-sm mb-6 inline-block">← Friends</a>
+
+  <!-- Profile header -->
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <div class="flex items-center gap-5">
+      <div class="w-16 h-16 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-2xl">
+        {{ profile.display_name[0].upper() }}
+      </div>
+      <div class="flex-1">
+        <h1 class="font-serif text-2xl font-bold text-gray-900">{{ profile.display_name }}</h1>
+        <p class="text-gray-500 text-sm">@{{ profile.username }}</p>
+      </div>
+      {% if profile.id != session.user_id %}
+      <div>
+        {% if is_following %}
+        <form method="POST" action="{{ url_for('friends_remove', username=profile.username) }}">
+          <button class="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors">
+            Unfollow
+          </button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('friends_add') }}">
+          <input type="hidden" name="username" value="{{ profile.username }}">
+          <button class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-colors">
+            Follow
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-gray-100">
+      <div class="text-center">
+        <div class="text-2xl font-bold text-brand-700">{{ stats.get('read', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-0.5">Books read</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-brand-700">{{ stats.get('reading', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-0.5">Reading now</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-brand-700">{{ stats.get('want_to_read', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-0.5">Want to read</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Currently reading -->
+  {% if reading %}
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <h2 class="font-semibold text-gray-800 mb-4">📖 Currently Reading</h2>
+    <div class="space-y-4">
+      {% for book in reading %}
+      <div class="flex gap-4 items-center">
+        <div class="w-12 h-16 rounded-lg overflow-hidden bg-brand-100 flex items-center justify-center flex-shrink-0">
+          {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-xl">📗</span>
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-gray-900">{{ book.title }}</div>
+          <div class="text-sm text-gray-500">{{ book.author }}</div>
+          {% if book.total_pages %}
+          {% set pct = (book.current_page / book.total_pages * 100) | int %}
+          <div class="mt-2 flex items-center gap-2">
+            <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+            </div>
+            <span class="text-xs text-gray-400">{{ pct }}%</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recently finished -->
+  {% if finished %}
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <h2 class="font-semibold text-gray-800 mb-4">✅ Recently Finished</h2>
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+      {% for book in finished %}
+      <div class="group">
+        <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-1.5 shadow-sm">
+          {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-2xl">📘</span>
+          {% endif %}
+        </div>
+        <div class="text-xs font-medium text-gray-700 truncate">{{ book.title }}</div>
+        {% if book.rating %}
+        <div class="text-xs text-yellow-500">{{ '★' * book.rating }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Want to read -->
+  {% if want_to_read %}
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+    <h2 class="font-semibold text-gray-800 mb-4">📋 Want to Read</h2>
+    <div class="grid grid-cols-2 gap-2">
+      {% for book in want_to_read %}
+      <div class="flex gap-2 items-center">
+        <div class="w-8 h-10 rounded bg-brand-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-sm">📗</span>
+          {% endif %}
+        </div>
+        <div class="min-w-0">
+          <div class="text-sm text-gray-800 truncate">{{ book.title }}</div>
+          <div class="text-xs text-gray-400 truncate">{{ book.author }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

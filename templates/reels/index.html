@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+{% block title %}Reels — Bookshelf{% endblock %}
+{% block content %}
+
+<!-- Full-viewport reel container — no padding, fills the screen -->
+<div class="flex" style="height: calc(100vh - 64px);">
+
+  <!-- Left: Tab strip (vertical on desktop, top on mobile) -->
+  <div class="hidden md:flex flex-col items-center gap-3 py-6 px-3 border-r border-brand-100 bg-white w-16 flex-shrink-0">
+    <button class="tab-icon active" data-tab="feed" title="For You">
+      <span class="text-2xl">✨</span>
+      <span class="text-xs text-brand-700 font-medium">You</span>
+    </button>
+    <button class="tab-icon" data-tab="saved" title="Saved">
+      <span class="text-2xl">🔖</span>
+      <span class="text-xs text-gray-400">Saved</span>
+    </button>
+    <button class="tab-icon" data-tab="mine" title="My Reels">
+      <span class="text-2xl">👤</span>
+      <span class="text-xs text-gray-400">Mine</span>
+    </button>
+    <div class="flex-1"></div>
+    <button onclick="document.getElementById('create-modal').classList.remove('hidden')"
+      class="flex flex-col items-center gap-1 text-brand-600 hover:text-brand-700 transition-colors">
+      <span class="text-2xl">➕</span>
+      <span class="text-xs font-medium">Post</span>
+    </button>
+  </div>
+
+  <!-- Mobile tab strip -->
+  <div class="md:hidden fixed top-16 left-0 right-0 z-40 bg-white border-b border-gray-100 flex">
+    <button class="tab-btn flex-1 py-2 text-sm font-medium text-brand-700 border-b-2 border-brand-600" data-tab="feed">✨ For You</button>
+    <button class="tab-btn flex-1 py-2 text-sm text-gray-500 border-b-2 border-transparent" data-tab="saved">🔖 Saved</button>
+    <button class="tab-btn flex-1 py-2 text-sm text-gray-500 border-b-2 border-transparent" data-tab="mine">👤 Mine</button>
+    <button onclick="document.getElementById('create-modal').classList.remove('hidden')"
+      class="px-4 py-2 text-sm font-medium text-brand-600">+ Post</button>
+  </div>
+
+  <!-- Main reel feed area -->
+  <div class="flex-1 overflow-hidden relative">
+
+    <!-- FOR YOU -->
+    <div id="tab-feed" class="h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth" id="reel-scroll">
+      <div id="reel-stack">
+        {% for reel in reels %}
+        {% include "reels/_card.html" %}
+        {% endfor %}
+
+        {% if not reels %}
+        <div class="snap-start h-full flex items-center justify-center">
+          <div class="text-center p-8">
+            <div class="text-6xl mb-4">📽️</div>
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">No reels yet</h2>
+            <p class="text-gray-400 text-sm mb-5">Add books to your shelf to personalize your feed,<br>or be the first to post a reel!</p>
+            <button onclick="document.getElementById('create-modal').classList.remove('hidden')"
+              class="bg-brand-600 text-white px-6 py-2.5 rounded-xl font-medium">Post a Reel</button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Load more sentinel -->
+        <div id="load-sentinel" class="snap-start h-4 flex items-center justify-center text-gray-400 text-sm">
+          <div id="loading-indicator" class="hidden">Loading more…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVED -->
+    <div id="tab-saved" class="hidden h-full overflow-y-scroll snap-y snap-mandatory">
+      <div id="saved-stack">
+        <div class="snap-start h-full flex items-center justify-center">
+          <div class="text-center p-8">
+            <div class="text-5xl mb-3">🔖</div>
+            <p class="text-gray-400 text-sm">Loading saved reels…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MY REELS -->
+    <div id="tab-mine" class="hidden h-full overflow-y-scroll snap-y snap-mandatory">
+      <div id="mine-stack">
+        <div class="snap-start h-full flex items-center justify-center">
+          <div class="text-center p-8">
+            <div class="text-5xl mb-3">📝</div>
+            <p class="text-gray-400 text-sm">Loading your reels…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create reel modal -->
+<div id="create-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+  <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+      <h2 class="font-semibold text-gray-800 text-lg">Post a Book Reel</h2>
+      <button onclick="document.getElementById('create-modal').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('reels_create') }}" enctype="multipart/form-data" class="p-5 space-y-4">
+
+      <!-- Video upload -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Video <span class="text-gray-400 font-normal">(MP4, MOV, WebM — max 200MB)</span></label>
+        <label id="video-drop" class="flex flex-col items-center gap-2 border-2 border-dashed border-brand-300 rounded-2xl p-6 cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-colors">
+          <span class="text-4xl">🎬</span>
+          <span class="text-sm text-gray-500 text-center">
+            <span class="text-brand-600 font-medium">Click to upload</span> or drag & drop<br>
+            <span id="video-name" class="text-xs text-gray-400">No file chosen</span>
+          </span>
+          <input type="file" name="video" id="video-input" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,.mkv"
+            class="hidden" onchange="handleVideoSelect(this)">
+        </label>
+        <!-- Preview -->
+        <video id="video-preview" class="hidden w-full rounded-xl mt-2 max-h-48 object-contain bg-black" controls muted></video>
+      </div>
+
+      <!-- Book picker -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Book</label>
+        {% if my_books %}
+        <select id="book-select" onchange="fillReelBook(this)"
+          class="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm bg-white mb-2">
+          <option value="">— Pick from your shelf —</option>
+          {% for b in my_books %}
+          <option value="{{ b.title }}|{{ b.author }}|{{ b.cover_url or '' }}|{{ b.genre or '' }}">
+            {{ b.title }} — {{ b.author }}
+          </option>
+          {% endfor %}
+          <option value="__manual__">✏️ Enter manually</option>
+        </select>
+        {% endif %}
+        <div id="manual-book-fields" class="{% if my_books %}hidden{% endif %} grid grid-cols-2 gap-2">
+          <input type="text" name="book_title" id="reel-book-title" placeholder="Book title *" required
+            class="col-span-2 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          <input type="text" name="book_author" id="reel-book-author" placeholder="Author"
+            class="px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          <input type="text" name="book_genre" id="reel-book-genre" placeholder="Genre"
+            class="px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          <input type="hidden" name="book_cover_url" id="reel-cover-url">
+        </div>
+      </div>
+
+      <!-- Caption -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Caption <span class="text-gray-400 font-normal">(optional, max 400 chars)</span></label>
+        <textarea name="content" id="reel-content" rows="3" maxlength="400"
+          placeholder="Your hot take, a key quote, what makes this book unmissable…"
+          oninput="document.getElementById('char-count').textContent=this.value.length"
+          class="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm resize-none"></textarea>
+        <div class="text-right text-xs text-gray-400 mt-0.5"><span id="char-count">0</span>/400</div>
+      </div>
+
+      <div class="flex gap-3 pb-2">
+        <button type="submit" id="submit-btn"
+          class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-xl text-sm transition-colors">
+          Post Reel
+        </button>
+        <button type="button" onclick="document.getElementById('create-modal').classList.add('hidden')"
+          class="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.reel-card-wrap {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
+  position: relative;
+}
+.reel-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  height: 100%;
+  max-height: 740px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #111;
+  box-shadow: 0 8px 40px -8px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+}
+.reel-video-area {
+  flex: 1;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reel-video-area video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+}
+.reel-no-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background: linear-gradient(135deg, #1a0a00 0%, #3d1f00 50%, #1a0a00 100%);
+  padding: 2rem;
+  text-align: center;
+  color: white;
+}
+.reel-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 20px 16px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  color: white;
+}
+.reel-actions {
+  position: absolute;
+  right: 10px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.reel-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  background: none;
+  border: none;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.reel-action-btn:hover { transform: scale(1.15); }
+.reel-action-btn .icon { font-size: 28px; }
+.reel-action-btn .label { font-size: 12px; font-weight: 600; }
+.reel-action-btn.liked .icon { filter: drop-shadow(0 0 6px #ef4444); }
+.reel-action-btn.saved .icon { filter: drop-shadow(0 0 6px #f59e0b); }
+.play-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  opacity: 0; transition: opacity 0.2s;
+}
+.play-overlay.show { opacity: 1; }
+.play-overlay span { font-size: 64px; text-shadow: 0 2px 16px rgba(0,0,0,0.5); }
+.tab-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px; border-radius: 12px; cursor: pointer; border: none; background: none;
+  transition: background 0.15s;
+}
+.tab-icon:hover, .tab-icon.active { background: #faefd8; }
+.mute-btn {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(0,0,0,0.5); border: none; color: white; border-radius: 50%;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px; backdrop-filter: blur(4px);
+}
+</style>
+
+<script>
+const MY_USER = "{{ session.username }}";
+const SAVED_IDS = new Set({{ saved_ids | list | tojson }});
+let feedOffset = {{ reels | length }};
+let loadingMore = false;
+let globalMuted = true;
+let activeTab = 'feed';
+
+// Auto-play via IntersectionObserver
+const videoObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const video = entry.target;
+    if (entry.isIntersecting) {
+      video.muted = globalMuted;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  });
+}, { threshold: 0.6 });
+
+function observeVideos() {
+  document.querySelectorAll('.reel-video').forEach(v => videoObserver.observe(v));
+}
+observeVideos();
+
+// Load-more IntersectionObserver
+const loadObs = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && !loadingMore && activeTab === 'feed') loadMore();
+}, { threshold: 0.5 });
+const sentinel = document.getElementById('load-sentinel');
+if (sentinel) loadObs.observe(sentinel);
+
+function loadMore() {
+  loadingMore = true;
+  document.getElementById('loading-indicator')?.classList.remove('hidden');
+  fetch(`/api/reels/feed?offset=${feedOffset}`)
+    .then(r => r.json())
+    .then(reels => {
+      document.getElementById('loading-indicator')?.classList.add('hidden');
+      if (!reels.length) { loadObs.disconnect(); return; }
+      const stack = document.getElementById('reel-stack');
+      reels.forEach(r => {
+        const div = document.createElement('div');
+        div.innerHTML = buildReelCard(r);
+        const card = div.firstElementChild;
+        stack.insertBefore(card, sentinel.parentElement);
+        card.querySelectorAll('.reel-video').forEach(v => videoObserver.observe(v));
+      });
+      feedOffset += reels.length;
+      loadingMore = false;
+    })
+    .catch(() => { loadingMore = false; });
+}
+
+// Tab switching
+function switchTab(tab) {
+  activeTab = tab;
+  ['feed','saved','mine'].forEach(t => {
+    document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('.tab-icon,.tab-btn').forEach(b => {
+    const isActive = b.dataset.tab === tab;
+    b.classList.toggle('active', isActive);
+    if (b.classList.contains('tab-btn')) {
+      b.classList.toggle('border-brand-600', isActive);
+      b.classList.toggle('text-brand-700', isActive);
+      b.classList.toggle('border-transparent', !isActive);
+      b.classList.toggle('text-gray-500', !isActive);
+    }
+  });
+  if (tab === 'saved') loadTabReels('saved', '/api/reels/saved');
+  if (tab === 'mine') loadTabReels('mine', '/api/reels/mine');
+}
+
+document.querySelectorAll('.tab-icon,.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function loadTabReels(tab, url) {
+  const stack = document.getElementById(`${tab}-stack`);
+  stack.innerHTML = '<div class="snap-start h-full flex items-center justify-center"><div class="text-gray-400">Loading…</div></div>';
+  fetch(url).then(r => r.json()).then(reels => {
+    if (!reels.length) {
+      stack.innerHTML = `<div class="snap-start h-full flex items-center justify-center">
+        <div class="text-center p-8">
+          <div class="text-5xl mb-3">${tab === 'saved' ? '🔖' : '📝'}</div>
+          <p class="text-gray-400 text-sm">${tab === 'saved' ? 'Tap ❤️ on reels to save them here.' : "You haven't posted any reels yet."}</p>
+        </div></div>`;
+      return;
+    }
+    stack.innerHTML = reels.map(buildReelCard).join('');
+    stack.querySelectorAll('.reel-video').forEach(v => videoObserver.observe(v));
+  });
+}
+
+// Reaction
+function react(reelId, reaction, btn) {
+  fetch('/api/reels/react', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reel_id: reelId, reaction})
+  })
+  .then(r => r.json())
+  .then(data => {
+    const wrap = document.querySelector(`[data-reel="${reelId}"]`);
+    if (!wrap) return;
+    if (data.like_count !== undefined) {
+      const lc = wrap.querySelector('.like-count');
+      if (lc) lc.textContent = data.like_count;
+    }
+    const likeBtn = wrap.querySelector('.like-btn');
+    const saveBtn = wrap.querySelector('.save-btn');
+    if (reaction === 'like') {
+      likeBtn?.classList.toggle('liked', data.action === 'set');
+    }
+    if (reaction === 'save') {
+      saveBtn?.classList.toggle('saved', data.action === 'set');
+    }
+    if (reaction === 'dislike') {
+      const parent = wrap.closest('.reel-card-wrap');
+      if (parent) {
+        parent.style.transition = 'opacity 0.3s, transform 0.3s';
+        parent.style.opacity = '0';
+        parent.style.transform = 'translateX(-60px)';
+        setTimeout(() => parent.remove(), 320);
+      }
+    }
+  });
+}
+
+// Toggle mute globally
+function toggleMute() {
+  globalMuted = !globalMuted;
+  document.querySelectorAll('.reel-video').forEach(v => { v.muted = globalMuted; });
+  document.querySelectorAll('.mute-btn').forEach(b => { b.textContent = globalMuted ? '🔇' : '🔊'; });
+}
+
+// Play/pause on click
+function togglePlay(video) {
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+    const overlay = video.parentElement.querySelector('.play-overlay');
+    if (overlay) { overlay.classList.add('show'); setTimeout(() => overlay.classList.remove('show'), 800); }
+  }
+}
+
+function buildReelCard(r) {
+  const saved = SAVED_IDS.has(r.id);
+  const videoHtml = r.video_path
+    ? `<video class="reel-video" src="/uploads/videos/${r.video_path}" muted loop playsinline
+         onclick="togglePlay(this)" preload="metadata"></video>
+       <div class="play-overlay"><span>▶</span></div>
+       <button class="mute-btn" onclick="event.stopPropagation();toggleMute()">🔇</button>`
+    : `<div class="reel-no-video">
+         ${r.book_cover_url ? `<img src="${r.book_cover_url}" style="width:90px;height:130px;object-fit:cover;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,0.4)">` : '<span style="font-size:56px;margin-bottom:12px">📗</span>'}
+         <div style="font-size:18px;font-weight:700;margin-bottom:6px">${r.book_title}</div>
+         <div style="font-size:14px;opacity:0.7">${r.book_author}</div>
+       </div>`;
+
+  return `
+  <div class="reel-card-wrap" data-reel="${r.id}">
+    <div class="reel-card">
+      <div class="reel-video-area">
+        ${videoHtml}
+        <!-- Book info overlay -->
+        <div class="reel-overlay">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            ${r.book_cover_url ? `<img src="${r.book_cover_url}" style="width:36px;height:50px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);flex-shrink:0">` : '<span style="font-size:28px">📗</span>'}
+            <div>
+              <div style="font-weight:700;font-size:15px;line-height:1.2">${r.book_title}</div>
+              <div style="font-size:13px;opacity:0.8">${r.book_author}</div>
+              ${r.book_genre ? `<div style="font-size:11px;background:rgba(255,255,255,0.2);padding:1px 8px;border-radius:20px;display:inline-block;margin-top:2px">${r.book_genre}</div>` : ''}
+            </div>
+          </div>
+          ${r.content ? `<div style="font-size:14px;line-height:1.5;margin-bottom:8px;max-height:72px;overflow:hidden">${r.content}</div>` : ''}
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:0.85">
+            <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">
+              ${r.display_name[0].toUpperCase()}
+            </div>
+            ${r.display_name} · @${r.username}
+            <a href="/books/add?title=${encodeURIComponent(r.book_title)}&author=${encodeURIComponent(r.book_author)}&cover_url=${encodeURIComponent(r.book_cover_url||'')}&genre=${encodeURIComponent(r.book_genre||'')}"
+               style="margin-left:auto;background:rgba(255,255,255,0.9);color:#7c5c14;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;text-decoration:none">
+              + Add to shelf
+            </a>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="reel-actions">
+          <button class="reel-action-btn like-btn ${r.my_reaction === 'like' ? 'liked' : ''}" onclick="react(${r.id},'like',this)">
+            <span class="icon">❤️</span>
+            <span class="label like-count">${r.like_count}</span>
+          </button>
+          <button class="reel-action-btn save-btn ${saved ? 'saved' : ''}" onclick="react(${r.id},'save',this)">
+            <span class="icon">🔖</span>
+            <span class="label">Save</span>
+          </button>
+          <button class="reel-action-btn dislike-btn" onclick="react(${r.id},'dislike',this)">
+            <span class="icon">👎</span>
+            <span class="label">Skip</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Drag & drop video
+const dropZone = document.getElementById('video-drop');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-brand-600','bg-brand-100'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-brand-600','bg-brand-100'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('border-brand-600','bg-brand-100');
+    const file = e.dataTransfer.files[0];
+    if (file) { document.getElementById('video-input').files = e.dataTransfer.files; handleVideoSelect({files: [file]}); }
+  });
+}
+
+function handleVideoSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('video-name').textContent = file.name;
+  const preview = document.getElementById('video-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('hidden');
+}
+
+function fillReelBook(select) {
+  const val = select.value;
+  const manual = document.getElementById('manual-book-fields');
+  manual.classList.remove('hidden');
+  if (val && val !== '__manual__') {
+    const [title, author, cover, genre] = val.split('|');
+    document.getElementById('reel-book-title').value = title;
+    document.getElementById('reel-book-author').value = author;
+    document.getElementById('reel-cover-url').value = cover;
+    document.getElementById('reel-book-genre').value = genre;
+  } else if (val === '') {
+    manual.classList.add('hidden');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+  <!-- Back -->
+  <a href="{{ url_for('books_index') }}" class="text-gray-400 hover:text-gray-600 text-sm mb-6 inline-block">← My Shelf</a>
+
+  <!-- Book header -->
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <div class="flex gap-6">
+      <!-- Cover -->
+      <div class="w-28 h-40 rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center flex-shrink-0 shadow-md">
+        {% if book.cover_url %}
+          <img src="{{ book.cover_url }}" alt="{{ book.title }}" class="w-full h-full object-cover">
+        {% else %}
+          <span class="text-5xl">📗</span>
+        {% endif %}
+      </div>
+      <!-- Info -->
+      <div class="flex-1 min-w-0">
+        <h1 class="font-serif text-2xl font-bold text-gray-900 leading-tight">{{ book.title }}</h1>
+        <p class="text-gray-500 mt-1">by <span class="font-medium text-gray-700">{{ book.author }}</span></p>
+        {% if book.genre %}
+          <span class="inline-block mt-2 text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">{{ book.genre }}</span>
+        {% endif %}
+
+        <!-- Status -->
+        <div class="flex gap-2 mt-4 flex-wrap">
+          {% for val, label, emoji in [('want_to_read','Want to Read','📋'),('reading','Reading','📖'),('read','Finished','✅')] %}
+          <button onclick="setStatus('{{ val }}')"
+            class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors status-btn
+            {% if book.status == val %}bg-brand-600 text-white border-brand-600{% else %}bg-white text-gray-600 border-gray-200 hover:border-brand-400{% endif %}"
+            data-status="{{ val }}">
+            {{ emoji }} {{ label }}
+          </button>
+          {% endfor %}
+        </div>
+
+        <!-- Dates -->
+        <div class="mt-3 flex gap-4 text-xs text-gray-400 flex-wrap">
+          {% if book.started_at %}
+            <span>Started {{ book.started_at | format_date }}</span>
+          {% endif %}
+          {% if book.finished_at %}
+            <span>Finished {{ book.finished_at | format_date }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress tracker -->
+  {% if book.status == 'reading' or book.current_page > 0 %}
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6" id="progress-section">
+    <h2 class="font-semibold text-gray-800 mb-4">Reading Progress</h2>
+
+    <div class="flex items-center gap-4">
+      <div class="flex-1">
+        {% set pct = ((book.current_page / book.total_pages * 100) | int) if book.total_pages else 0 %}
+        <div class="flex justify-between text-sm text-gray-500 mb-2">
+          <span id="progress-label">
+            {% if book.total_pages %}
+              Page <span id="current-page-display">{{ book.current_page }}</span> of {{ book.total_pages }}
+            {% else %}
+              Page <span id="current-page-display">{{ book.current_page }}</span>
+            {% endif %}
+          </span>
+          <span id="pct-display" class="font-medium text-brand-600">{{ pct }}%</span>
+        </div>
+        <div class="bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div id="progress-bar" class="bg-gradient-to-r from-brand-400 to-brand-600 h-3 rounded-full progress-bar"
+               style="width: {{ pct }}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page input -->
+    <div class="mt-4 flex items-center gap-3">
+      <label class="text-sm text-gray-600 whitespace-nowrap">Current page:</label>
+      <input type="number" id="page-input" value="{{ book.current_page }}" min="0"
+        {% if book.total_pages %}max="{{ book.total_pages }}"{% endif %}
+        class="w-28 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm text-center">
+      <button onclick="updateProgress()"
+        class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors" id="save-btn">
+        Save
+      </button>
+      <span id="save-status" class="text-sm text-green-600 opacity-0 transition-opacity"></span>
+    </div>
+
+    {% if book.total_pages %}
+    <!-- Quick jump buttons -->
+    <div class="mt-3 flex gap-2 flex-wrap">
+      {% for pct_val in [25, 50, 75, 100] %}
+      {% set target = (book.total_pages * pct_val / 100) | int %}
+      <button onclick="document.getElementById('page-input').value={{ target }}"
+        class="text-xs px-2.5 py-1 bg-gray-100 hover:bg-brand-100 text-gray-600 hover:text-brand-700 rounded-lg transition-colors">
+        {{ pct_val }}% (p.{{ target }})
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Reading log -->
+    {% if log %}
+    <div class="mt-5 pt-4 border-t border-gray-100">
+      <h3 class="text-sm font-medium text-gray-600 mb-3">Recent reading sessions</h3>
+      <div class="space-y-1.5">
+        {% for entry in log[:7] %}
+        <div class="flex justify-between text-xs text-gray-500">
+          <span>{{ entry.log_date }}</span>
+          <span class="font-medium text-gray-700">+{{ entry.pages_read }} pages</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Rating & Notes -->
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <h2 class="font-semibold text-gray-800 mb-4">Notes & Rating</h2>
+    <form method="POST" action="{{ url_for('books_edit', book_id=book.id) }}">
+      <input type="hidden" name="title" value="{{ book.title }}">
+      <input type="hidden" name="author" value="{{ book.author }}">
+      <input type="hidden" name="cover_url" value="{{ book.cover_url or '' }}">
+      <input type="hidden" name="genre" value="{{ book.genre or '' }}">
+      <input type="hidden" name="total_pages" value="{{ book.total_pages or '' }}">
+
+      <!-- Star rating -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+        <div class="flex gap-1" id="star-rating">
+          {% for i in range(1, 6) %}
+          <button type="button" onclick="setRating({{ i }})"
+            class="text-2xl transition-transform hover:scale-110 star-btn"
+            data-val="{{ i }}">
+            {{ '★' if book.rating and i <= book.rating else '☆' }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="rating" id="rating-input" value="{{ book.rating or '' }}">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <textarea name="notes" rows="4" placeholder="Your thoughts on this book…"
+          class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm resize-none">{{ book.notes or '' }}</textarea>
+      </div>
+
+      <button type="submit"
+        class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors">
+        Save notes
+      </button>
+    </form>
+  </div>
+
+  <!-- Edit book details -->
+  <details class="bg-white rounded-2xl border border-brand-100 shadow-sm mb-6">
+    <summary class="p-6 cursor-pointer font-semibold text-gray-800 select-none hover:text-brand-700">
+      Edit book details
+    </summary>
+    <div class="px-6 pb-6">
+      <form method="POST" action="{{ url_for('books_edit', book_id=book.id) }}" class="space-y-3">
+        <input type="hidden" name="notes" value="{{ book.notes or '' }}">
+        <input type="hidden" name="rating" value="{{ book.rating or '' }}">
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Title</label>
+            <input type="text" name="title" value="{{ book.title }}" required
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Author</label>
+            <input type="text" name="author" value="{{ book.author }}" required
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Total pages</label>
+            <input type="number" name="total_pages" value="{{ book.total_pages or '' }}"
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Genre</label>
+            <select name="genre"
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm bg-white">
+              <option value="">— Select —</option>
+              {% for g in genres %}
+              <option value="{{ g }}" {% if book.genre == g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Cover URL</label>
+            <input type="text" name="cover_url" value="{{ book.cover_url or '' }}"
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+          </div>
+        </div>
+        <button type="submit"
+          class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors">
+          Update
+        </button>
+      </form>
+    </div>
+  </details>
+
+  <!-- Danger zone -->
+  <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-6">
+    <h2 class="font-semibold text-red-700 mb-3">Remove Book</h2>
+    <p class="text-sm text-gray-500 mb-4">This will permanently delete this book and all its reading history.</p>
+    <form method="POST" action="{{ url_for('books_delete', book_id=book.id) }}"
+      onsubmit="return confirm('Delete this book permanently?')">
+      <button type="submit"
+        class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+        Delete book
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+const bookId = {{ book.id }};
+const totalPages = {{ book.total_pages or 0 }};
+
+// Progress update
+let saveTimeout;
+function updateProgress() {
+  const page = parseInt(document.getElementById('page-input').value) || 0;
+  const btn = document.getElementById('save-btn');
+  const status = document.getElementById('save-status');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  fetch(`/books/${bookId}/progress`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({current_page: page})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('current-page-display').textContent = data.current_page;
+    document.getElementById('progress-bar').style.width = data.pct + '%';
+    document.getElementById('pct-display').textContent = data.pct + '%';
+    btn.textContent = 'Save';
+    btn.disabled = false;
+    status.textContent = '✓ Saved';
+    status.style.opacity = '1';
+    setTimeout(() => { status.style.opacity = '0'; }, 2000);
+
+    // Update status buttons if status changed
+    document.querySelectorAll('.status-btn').forEach(b => {
+      const isActive = b.dataset.status === data.status;
+      b.className = b.className.replace(/bg-brand-600 text-white border-brand-600|bg-white text-gray-600 border-gray-200/g, '');
+      b.classList.add(...(isActive
+        ? ['bg-brand-600', 'text-white', 'border-brand-600']
+        : ['bg-white', 'text-gray-600', 'border-gray-200']));
+    });
+    if (data.status === 'read') {
+      setTimeout(() => location.reload(), 800);
+    }
+  })
+  .catch(() => { btn.textContent = 'Save'; btn.disabled = false; });
+}
+
+document.getElementById('page-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); updateProgress(); }
+});
+
+// Status change
+function setStatus(status) {
+  fetch(`/books/${bookId}/progress`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  }).then(() => location.reload());
+}
+
+// Star rating
+function setRating(val) {
+  document.getElementById('rating-input').value = val;
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.textContent = parseInt(btn.dataset.val) <= val ? '★' : '☆';
+    btn.style.color = parseInt(btn.dataset.val) <= val ? '#f59e0b' : '#d1d5db';
+  });
+}
+
+// Init star colors
+document.querySelectorAll('.star-btn').forEach(btn => {
+  const val = parseInt(btn.dataset.val);
+  const rating = {{ book.rating or 0 }};
+  btn.style.color = val <= rating ? '#f59e0b' : '#d1d5db';
+});
+</script>
+{% endblock %}

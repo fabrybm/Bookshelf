@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}{{ club.book_title }} Club — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6">
+
+  <a href="{{ url_for('clubs_index') }}" class="text-gray-400 hover:text-gray-600 text-sm mb-4 inline-block">← Book Clubs</a>
+
+  <!-- Header -->
+  <div class="flex gap-4 items-start mb-5">
+    <div class="w-16 h-24 rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center flex-shrink-0 shadow-md">
+      {% if club.book_cover_url %}
+        <img src="{{ club.book_cover_url }}" class="w-full h-full object-cover" alt="">
+      {% else %}
+        <span class="text-3xl">📗</span>
+      {% endif %}
+    </div>
+    <div class="flex-1">
+      <h1 class="font-serif text-xl font-bold text-gray-900">{{ club.book_title }}</h1>
+      <div class="text-sm text-gray-500 mt-0.5">by {{ club.book_author }}</div>
+
+      <!-- Spoiler zone badge -->
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        {% if club.milestone_type == 'event' and club.milestone_label %}
+          <span class="inline-flex items-center gap-1 text-xs bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full font-medium">
+            📍 Up through "{{ club.milestone_label }}"
+          </span>
+          {% if next_milestone %}
+          <span class="inline-flex items-center gap-1 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-1 rounded-full font-medium">
+            🔒 No spoilers past "{{ next_milestone.label }}"
+          </span>
+          {% endif %}
+        {% else %}
+          <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+            Pages {{ club.page_start }}–{{ club.page_end or '∞' }}
+          </span>
+        {% endif %}
+        <span class="text-xs text-green-600 font-medium">● Spoiler-free zone</span>
+      </div>
+
+      <div class="text-xs text-gray-400 mt-1.5">{{ members | length }} member{{ 's' if members | length != 1 else '' }}</div>
+    </div>
+  </div>
+
+  <!-- Story timeline nav (milestones for this book) -->
+  {% if milestones %}
+  <div class="mb-5 bg-white border border-brand-100 rounded-2xl p-4 shadow-sm">
+    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Story Timeline — Jump to a Discussion</div>
+    <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      {% for m in milestones %}
+      {% set is_current = (club.milestone_label == m.label) %}
+      {% set club_for_m = adjacent | selectattr('milestone_label','equalto', m.label) | first %}
+      <div class="flex-shrink-0 flex flex-col items-center gap-1" style="width:90px">
+        <div class="w-3 h-3 rounded-full border-2 flex-shrink-0
+          {% if is_current %}bg-brand-600 border-brand-600{% else %}bg-white border-gray-300{% endif %}"></div>
+        {% if club_for_m %}
+        <a href="{{ url_for('clubs_room', club_id=club_for_m.id) }}"
+           class="text-center text-xs leading-tight {% if is_current %}text-brand-700 font-semibold{% else %}text-gray-500 hover:text-brand-600{% endif %}">
+          {{ m.label[:30] }}{% if m.label|length > 30 %}…{% endif %}
+          {% if club_for_m.mc %}<div class="text-xs text-gray-400">{{ club_for_m.mc }}</div>{% endif %}
+        </a>
+        {% else %}
+        <span class="text-center text-xs leading-tight text-gray-400">
+          {{ m.label[:30] }}{% if m.label|length > 30 %}…{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      {% if not loop.last %}
+      <div class="flex-shrink-0 self-start mt-1.5 text-gray-200 text-sm">—</div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% elif adjacent %}
+  <!-- Fallback: page-range adjacent rooms -->
+  <div class="flex gap-2 mb-5 overflow-x-auto pb-1">
+    <span class="text-xs text-gray-400 self-center whitespace-nowrap mr-1">Other sections:</span>
+    {% for adj in adjacent %}
+    <a href="{{ url_for('clubs_room', club_id=adj.id) }}"
+       class="flex-shrink-0 text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-full hover:border-brand-400 hover:text-brand-700 transition-colors whitespace-nowrap">
+      p.{{ adj.page_start }}–{{ adj.page_end or '∞' }}
+      <span class="text-gray-400 ml-1">({{ adj.mc }})</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="grid md:grid-cols-4 gap-5">
+
+    <!-- Chat -->
+    <div class="md:col-span-3">
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm overflow-hidden flex flex-col" style="height:560px">
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+          {% if not messages %}
+          <div class="text-center py-10">
+            <div class="text-4xl mb-2">💬</div>
+            <p class="text-gray-400 text-sm">No messages yet — start the discussion!</p>
+            {% if club.milestone_type == 'event' and club.milestone_label %}
+            <p class="text-xs text-gray-300 mt-1">Anything up through "{{ club.milestone_label }}" is fair game.</p>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {% for msg in messages %}
+          <div class="flex gap-3 items-start {% if msg.username == session.username %}flex-row-reverse{% endif %}"
+               data-msg-id="{{ msg.id }}">
+            <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+              {% if msg.username == session.username %}bg-brand-600 text-white{% else %}bg-brand-200 text-brand-800{% endif %}">
+              {{ msg.display_name[0].upper() }}
+            </div>
+            <div class="max-w-[75%] flex flex-col {% if msg.username == session.username %}items-end{% endif %}">
+              {% if msg.username != session.username %}
+              <span class="text-xs text-gray-400 mb-1 ml-1">{{ msg.display_name }}</span>
+              {% endif %}
+              <div class="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed
+                {% if msg.username == session.username %}bg-brand-600 text-white rounded-tr-sm{% else %}bg-gray-100 text-gray-800 rounded-tl-sm{% endif %}">
+                {{ msg.content }}
+              </div>
+              <span class="text-xs text-gray-300 mt-1 {% if msg.username == session.username %}mr-1{% else %}ml-1{% endif %}">
+                {{ msg.created_at | time_ago }}
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="border-t border-gray-100 p-3">
+          <form method="POST" action="{{ url_for('clubs_message', club_id=club.id) }}" id="msg-form" class="flex gap-2">
+            <input type="text" name="content" id="msg-input" autocomplete="off" maxlength="1000"
+              placeholder="{% if club.milestone_type == 'event' and club.milestone_label %}Discuss up through "{{ club.milestone_label }}"…{% else %}Share your thoughts (no spoilers past p.{{ club.page_end or '∞' }}){% endif %}"
+              class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+            <button type="submit"
+              class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+              Send
+            </button>
+          </form>
+          <p class="text-xs text-gray-400 mt-1.5 text-center">
+            🤐 Spoiler-free zone —
+            {% if club.milestone_type == 'event' and next_milestone %}
+              don't mention anything past "{{ next_milestone.label }}"
+            {% elif club.page_end %}
+              keep it to pages {{ club.page_start }}–{{ club.page_end }}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">
+          Members <span class="text-gray-400 font-normal">({{ members | length }})</span>
+        </h3>
+        <div class="space-y-2.5">
+          {% for m in members %}
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+              {% if m.username == session.username %}bg-brand-600 text-white{% else %}bg-brand-200 text-brand-800{% endif %}">
+              {{ m.display_name[0].upper() }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-medium text-gray-700 truncate">
+                {{ m.display_name }}{% if m.username == session.username %} <span class="text-gray-400">(you)</span>{% endif %}
+              </div>
+              {% if m.current_page and m.total_pages %}
+              {% set pct = (m.current_page / m.total_pages * 100) | int %}
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <div class="flex-1 bg-gray-100 rounded-full h-1">
+                  <div class="bg-brand-400 h-1 rounded-full" style="width:{{ pct }}%"></div>
+                </div>
+                <span class="text-xs text-gray-400">{{ pct }}%</span>
+              </div>
+              {% elif m.current_page %}
+              <div class="text-xs text-gray-400">p. {{ m.current_page }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bg-amber-50 rounded-2xl border border-amber-100 p-4">
+        <h3 class="text-sm font-semibold text-amber-800 mb-2">🤐 Spoiler Rules</h3>
+        <ul class="text-xs text-amber-700 space-y-1.5">
+          {% if club.milestone_type == 'event' and club.milestone_label %}
+          <li>• Only discuss up through<br><strong>"{{ club.milestone_label }}"</strong></li>
+          {% if next_milestone %}
+          <li>• Don't reveal what happens at or after <strong>"{{ next_milestone.label }}"</strong></li>
+          {% endif %}
+          {% else %}
+          <li>• Only discuss pages {{ club.page_start }}–{{ club.page_end or '∞' }}</li>
+          {% endif %}
+          <li>• Theories welcome, reveals are not</li>
+          <li>• All reactions & opinions welcome</li>
+          <li>• Tag quotes with page numbers</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLUB_ID = {{ club.id }};
+const MY_USER = "{{ session.username }}";
+let lastMsgId = {{ messages[-1].id if messages else 0 }};
+let polling = true;
+
+const msgDiv = document.getElementById('messages');
+msgDiv.scrollTop = msgDiv.scrollHeight;
+
+function pollMessages() {
+  if (!polling) return;
+  fetch(`/api/clubs/${CLUB_ID}/messages?after=${lastMsgId}`)
+    .then(r => r.json())
+    .then(msgs => {
+      if (!msgs.length) return;
+      const atBottom = msgDiv.scrollHeight - msgDiv.scrollTop <= msgDiv.clientHeight + 60;
+      msgs.forEach(msg => {
+        if (document.querySelector(`[data-msg-id="${msg.id}"]`)) return;
+        lastMsgId = Math.max(lastMsgId, msg.id);
+        const isMe = msg.username === MY_USER;
+        const el = document.createElement('div');
+        el.dataset.msgId = msg.id;
+        el.className = `flex gap-3 items-start ${isMe ? 'flex-row-reverse' : ''}`;
+        el.innerHTML = `
+          <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${isMe ? 'bg-brand-600 text-white' : 'bg-brand-200 text-brand-800'}">
+            ${msg.display_name[0].toUpperCase()}
+          </div>
+          <div class="max-w-[75%] flex flex-col ${isMe ? 'items-end' : ''}">
+            ${!isMe ? `<span class="text-xs text-gray-400 mb-1 ml-1">${msg.display_name}</span>` : ''}
+            <div class="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm'}">
+              ${msg.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+            </div>
+            <span class="text-xs text-gray-300 mt-1 ${isMe ? 'mr-1' : 'ml-1'}">just now</span>
+          </div>`;
+        const empty = msgDiv.querySelector('.text-center');
+        if (empty) empty.remove();
+        msgDiv.appendChild(el);
+      });
+      if (atBottom) msgDiv.scrollTop = msgDiv.scrollHeight;
+    })
+    .catch(() => {})
+    .finally(() => { setTimeout(pollMessages, 4000); });
+}
+setTimeout(pollMessages, 4000);
+
+document.addEventListener('visibilitychange', () => {
+  polling = !document.hidden;
+  if (!document.hidden) pollMessages();
+});
+</script>
+{% endblock %}

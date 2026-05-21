@@ -1,0 +1,83 @@
+<div class="reel-card-wrap" data-reel="{{ reel.id }}">
+  <div class="reel-card">
+    <div class="reel-video-area">
+
+      {% if reel.video_path %}
+      <video class="reel-video" src="/uploads/videos/{{ reel.video_path }}"
+             muted loop playsinline preload="metadata"
+             onclick="togglePlay(this)"></video>
+      <div class="play-overlay"><span>▶</span></div>
+      <button class="mute-btn" onclick="event.stopPropagation();toggleMute()">🔇</button>
+      {% else %}
+      <!-- Caption-only reel — styled book card -->
+      <div class="reel-no-video">
+        {% if reel.book_cover_url %}
+          <img src="{{ reel.book_cover_url }}"
+               style="width:90px;height:130px;object-fit:cover;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,0.4)"
+               onerror="this.style.display='none'">
+        {% else %}
+          <span style="font-size:56px;margin-bottom:12px">📗</span>
+        {% endif %}
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;max-width:280px;text-align:center">{{ reel.book_title }}</div>
+        <div style="font-size:14px;opacity:0.7">{{ reel.book_author }}</div>
+        {% if reel.content %}
+        <div style="font-size:15px;line-height:1.6;margin-top:20px;max-width:300px;text-align:center;opacity:0.9;font-style:italic">"{{ reel.content }}"</div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Bottom overlay: book info + user -->
+      <div class="reel-overlay">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:{% if reel.video_path and reel.content %}8px{% else %}4px{% endif %}">
+          {% if reel.book_cover_url and reel.video_path %}
+          <img src="{{ reel.book_cover_url }}"
+               style="width:36px;height:50px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);flex-shrink:0"
+               onerror="this.style.display='none'">
+          {% endif %}
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ reel.book_title }}</div>
+            <div style="font-size:13px;opacity:0.8">{{ reel.book_author }}</div>
+            {% if reel.book_genre %}
+            <div style="font-size:11px;background:rgba(255,255,255,0.2);padding:1px 8px;border-radius:20px;display:inline-block;margin-top:2px">{{ reel.book_genre }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if reel.video_path and reel.content %}
+        <div style="font-size:14px;line-height:1.5;margin-bottom:8px;max-height:72px;overflow:hidden">{{ reel.content }}</div>
+        {% endif %}
+
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:0.85">
+          <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">
+            {{ reel.display_name[0].upper() }}
+          </div>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ reel.display_name }} · @{{ reel.username }}</span>
+          <a href="{{ url_for('books_add') }}?title={{ reel.book_title | urlencode }}&author={{ reel.book_author | urlencode }}&cover_url={{ (reel.book_cover_url or '') | urlencode }}&genre={{ (reel.book_genre or '') | urlencode }}"
+             style="margin-left:auto;background:rgba(255,255,255,0.9);color:#7c5c14;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;text-decoration:none;flex-shrink:0;white-space:nowrap">
+            + Add
+          </a>
+        </div>
+      </div>
+
+      <!-- Side action buttons -->
+      <div class="reel-actions">
+        <button class="reel-action-btn like-btn {% if reel.my_reaction == 'like' %}liked{% endif %}"
+                onclick="react({{ reel.id }},'like',this)">
+          <span class="icon">❤️</span>
+          <span class="label like-count">{{ reel.like_count }}</span>
+        </button>
+        <button class="reel-action-btn save-btn {% if reel.id in saved_ids %}saved{% endif %}"
+                onclick="react({{ reel.id }},'save',this)">
+          <span class="icon">🔖</span>
+          <span class="label">Save</span>
+        </button>
+        <button class="reel-action-btn dislike-btn"
+                onclick="react({{ reel.id }},'dislike',this)">
+          <span class="icon">👎</span>
+          <span class="label">Skip</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

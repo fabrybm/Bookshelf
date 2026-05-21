@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Friends — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <h1 class="font-serif text-2xl font-bold text-gray-900 mb-6">Friends</h1>
+
+  <div class="grid md:grid-cols-3 gap-6">
+
+    <!-- Left: Add friend + Following list -->
+    <div class="space-y-6">
+
+      <!-- Add friend -->
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800 mb-3">Follow someone</h2>
+        <form method="POST" action="{{ url_for('friends_add') }}" class="flex gap-2">
+          <input type="text" name="username" placeholder="Enter username"
+            class="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm" required>
+          <button type="submit"
+            class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap">
+            Follow
+          </button>
+        </form>
+        <p class="text-xs text-gray-400 mt-2">Find friends by their exact username</p>
+      </div>
+
+      <!-- Following -->
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800 mb-3">
+          Following <span class="text-gray-400 font-normal">({{ following | length }})</span>
+        </h2>
+        {% if following %}
+        <div class="space-y-2">
+          {% for friend in following %}
+          <div class="flex items-center gap-3 py-1">
+            <div class="w-8 h-8 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-sm flex-shrink-0">
+              {{ friend.display_name[0].upper() }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <a href="{{ url_for('friends_profile', username=friend.username) }}"
+                 class="text-sm font-medium text-gray-800 hover:text-brand-700">{{ friend.display_name }}</a>
+              <div class="text-xs text-gray-400">@{{ friend.username }}</div>
+            </div>
+            <form method="POST" action="{{ url_for('friends_remove', username=friend.username) }}">
+              <button type="submit" class="text-xs text-gray-400 hover:text-red-500 transition-colors">Unfollow</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400">Not following anyone yet. Add a friend above!</p>
+        {% endif %}
+      </div>
+
+      <!-- Followers -->
+      {% if followers %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800 mb-3">
+          Followers <span class="text-gray-400 font-normal">({{ followers | length }})</span>
+        </h2>
+        <div class="space-y-2">
+          {% for f in followers %}
+          <div class="flex items-center gap-3 py-1">
+            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-sm">
+              {{ f.display_name[0].upper() }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <a href="{{ url_for('friends_profile', username=f.username) }}"
+                 class="text-sm font-medium text-gray-700 hover:text-brand-700">{{ f.display_name }}</a>
+              <div class="text-xs text-gray-400">@{{ f.username }}</div>
+            </div>
+            {% if f.id not in following_ids %}
+            <form method="POST" action="{{ url_for('friends_add') }}">
+              <input type="hidden" name="username" value="{{ f.username }}">
+              <button type="submit" class="text-xs text-brand-600 hover:text-brand-700 font-medium">Follow back</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Right: Activity feed -->
+    <div class="md:col-span-2">
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800 mb-4">Friends Activity</h2>
+
+        {% if feed %}
+        <div class="space-y-4" id="feed">
+          {% for event in feed %}
+          {% set payload = event.payload | fromjson if event.payload else {} %}
+          <div class="flex gap-3 items-start border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+            <a href="{{ url_for('friends_profile', username=event.username) }}">
+              <div class="w-9 h-9 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold flex-shrink-0">
+                {{ event.display_name[0].upper() }}
+              </div>
+            </a>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-gray-700">
+                <a href="{{ url_for('friends_profile', username=event.username) }}"
+                   class="font-semibold hover:text-brand-700">{{ event.display_name }}</a>
+                {% if event.event_type == 'started' %}
+                  <span class="text-gray-500"> started reading </span>
+                {% elif event.event_type == 'finished' %}
+                  <span class="text-green-600 font-medium"> finished </span>
+                {% elif event.event_type == 'rated' %}
+                  <span class="text-gray-500"> rated </span>
+                {% elif event.event_type == 'added' %}
+                  <span class="text-gray-500"> added </span>
+                {% else %}
+                  <span class="text-gray-500"> is {{ payload.get('pct', '?') }}% through </span>
+                {% endif %}
+                <a href="{{ url_for('books_detail', book_id=event.book_id) if event.book_id }}"
+                   class="font-medium text-brand-700 hover:underline">{{ event.title }}</a>
+                {% if event.event_type == 'rated' and payload.get('rating') %}
+                  <span class="text-yellow-500"> {{ '★' * payload.rating }}</span>
+                {% endif %}
+              </p>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-xs text-gray-400">{{ event.created_at | time_ago }}</span>
+                {% if event.cover_url %}
+                  <img src="{{ event.cover_url }}" class="w-6 h-8 rounded object-cover" alt="">
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif following %}
+        <div class="text-center py-12">
+          <div class="text-4xl mb-3">📭</div>
+          <p class="text-gray-500">No activity yet from the people you follow.</p>
+          <p class="text-sm text-gray-400 mt-1">When they log reading progress, it'll show up here.</p>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+          <div class="text-4xl mb-3">👥</div>
+          <p class="text-gray-600 font-medium">Follow friends to see their activity</p>
+          <p class="text-sm text-gray-400 mt-1">Use the form on the left to find people by username.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Currently reading by friends -->
+      {% if following %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-5 mt-6">
+        <h2 class="font-semibold text-gray-800 mb-4">What friends are reading now</h2>
+        {% set any_reading = namespace(found=false) %}
+        {% for friend in following %}
+          {% if friend.current_book %}
+          {% set any_reading.found = true %}
+          <div class="flex gap-3 items-center mb-4 last:mb-0">
+            <div class="w-8 h-8 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-sm flex-shrink-0">
+              {{ friend.display_name[0].upper() }}
+            </div>
+            {% if friend.cover_url %}
+            <img src="{{ friend.cover_url }}" class="w-10 h-14 rounded-lg object-cover flex-shrink-0" alt="">
+            {% endif %}
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">{{ friend.current_book }}</div>
+              <div class="text-xs text-gray-500">{{ friend.current_author }}</div>
+              {% if friend.total_pages and friend.current_page %}
+              {% set pct = (friend.current_page / friend.total_pages * 100) | int %}
+              <div class="mt-1 flex items-center gap-2">
+                <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                  <div class="bg-brand-400 h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+                </div>
+                <span class="text-xs text-gray-400">{{ pct }}%</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+        {% if not any_reading.found %}
+        <p class="text-sm text-gray-400 text-center py-4">None of your friends are actively reading right now.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Add Book — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{{ url_for('books_index') }}" class="text-gray-400 hover:text-gray-600 transition-colors">
+      ← Back
+    </a>
+    <h1 class="font-serif text-2xl font-bold text-gray-900">Add a Book</h1>
+  </div>
+
+  <!-- Search Open Library -->
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 mb-6">
+    <h2 class="font-semibold text-gray-800 mb-3">🔍 Search Open Library</h2>
+    <div class="flex gap-2">
+      <input type="text" id="search-input" placeholder="Search by title, author, or ISBN…"
+        class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+      <button onclick="searchBooks()"
+        class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap">
+        Search
+      </button>
+    </div>
+    <div id="search-results" class="mt-3 space-y-2 hidden"></div>
+    <div id="search-loading" class="hidden mt-3 text-center text-sm text-gray-400 py-2">Searching…</div>
+  </div>
+
+  <!-- Manual / pre-filled form -->
+  <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+    <h2 class="font-semibold text-gray-800 mb-4">📝 Book Details</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      {% if prefill.title %}Selected from search — edit any fields before saving.
+      {% else %}Fill in manually or search above to auto-populate.{% endif %}
+    </p>
+
+    <form method="POST" id="book-form" class="space-y-4">
+      <input type="hidden" name="ol_key" id="ol_key" value="{{ prefill.ol_key }}">
+      <input type="hidden" name="cover_url" id="cover_url_hidden" value="{{ prefill.cover_url }}">
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-500">*</span></label>
+          <input type="text" name="title" id="title" required value="{{ prefill.title }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Author <span class="text-red-500">*</span></label>
+          <input type="text" name="author" id="author" required value="{{ prefill.author }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Total pages</label>
+          <input type="number" name="total_pages" id="total_pages" min="1" value="{{ prefill.total_pages }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Genre</label>
+          <select name="genre" id="genre"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm bg-white">
+            <option value="">— Select —</option>
+            {% for g in genres %}
+            <option value="{{ g }}" {% if prefill.genre == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Reading status</label>
+          <div class="flex gap-2">
+            {% for val, label, emoji in [('want_to_read','Want to Read','📋'),('reading','Currently Reading','📖'),('read','Already Read','✅')] %}
+            <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer hover:border-brand-400 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+              <input type="radio" name="status" value="{{ val }}" class="accent-brand-600"
+                {% if loop.first %}checked{% endif %}>
+              <span class="text-lg">{{ emoji }}</span>
+              <span class="text-sm font-medium">{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cover image URL</label>
+          <div class="flex gap-2 items-start">
+            <input type="text" id="cover_url_display" value="{{ prefill.cover_url }}"
+              placeholder="Paste an image URL or leave blank"
+              oninput="document.getElementById('cover_url_hidden').value=this.value; updatePreview()"
+              class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm">
+            <div id="cover-preview" class="w-12 h-16 rounded-lg overflow-hidden bg-brand-100 flex items-center justify-center flex-shrink-0">
+              {% if prefill.cover_url %}
+                <img id="cover-img" src="{{ prefill.cover_url }}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-xl\\'>📗</span>'">
+              {% else %}
+                <span class="text-xl">📗</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit"
+          class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
+          Add to Shelf
+        </button>
+        <a href="{{ url_for('books_index') }}"
+          class="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let searchTimeout;
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); searchBooks(); }
+});
+
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(searchBooks, 500);
+});
+
+function searchBooks() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const results = document.getElementById('search-results');
+  const loading = document.getElementById('search-loading');
+  results.classList.add('hidden');
+  loading.classList.remove('hidden');
+
+  fetch(`/api/search?q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(books => {
+      loading.classList.add('hidden');
+      if (!books.length) {
+        results.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">No results found</p>';
+        results.classList.remove('hidden');
+        return;
+      }
+      results.innerHTML = books.map(b => `
+        <button type="button" onclick='fillForm(${JSON.stringify(b)})'
+          class="w-full flex gap-3 items-center text-left px-3 py-2.5 rounded-xl hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-colors group">
+          <div class="w-10 h-14 rounded-lg overflow-hidden bg-brand-100 flex items-center justify-center flex-shrink-0">
+            ${b.cover_url
+              ? `<img src="${b.cover_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span>📗</span>'">`
+              : '<span>📗</span>'}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-gray-800 truncate group-hover:text-brand-700">${b.title}</div>
+            <div class="text-xs text-gray-500">${b.author}</div>
+            ${b.total_pages ? `<div class="text-xs text-gray-400">${b.total_pages} pages</div>` : ''}
+          </div>
+          <span class="text-xs text-brand-500 font-medium flex-shrink-0">Select →</span>
+        </button>
+      `).join('');
+      results.classList.remove('hidden');
+    })
+    .catch(() => { loading.classList.add('hidden'); });
+}
+
+function fillForm(book) {
+  document.getElementById('title').value = book.title || '';
+  document.getElementById('author').value = book.author || '';
+  document.getElementById('total_pages').value = book.total_pages || '';
+  document.getElementById('ol_key').value = book.ol_key || '';
+  document.getElementById('cover_url_hidden').value = book.cover_url || '';
+  document.getElementById('cover_url_display').value = book.cover_url || '';
+
+  // Try to match genre
+  if (book.genre) {
+    const sel = document.getElementById('genre');
+    for (let opt of sel.options) {
+      if (opt.value.toLowerCase() === book.genre.toLowerCase()) { sel.value = opt.value; break; }
+    }
+  }
+  updatePreview();
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('search-input').value = '';
+  document.getElementById('title').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updatePreview() {
+  const url = document.getElementById('cover_url_hidden').value;
+  const prev = document.getElementById('cover-preview');
+  if (url) {
+    prev.innerHTML = `<img src="${url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-xl\\'>📗</span>'">`;
+  } else {
+    prev.innerHTML = '<span class="text-xl">📗</span>';
+  }
+}
+</script>
+{% endblock %}

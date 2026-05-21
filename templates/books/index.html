@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}My Shelf — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="font-serif text-2xl font-bold text-gray-900">My Shelf</h1>
+    <a href="{{ url_for('books_add') }}"
+       class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+      + Add Book
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-wrap gap-2 mb-6">
+    {% for s, label in [('all','All'), ('reading','Reading'), ('want_to_read','Want to Read'), ('read','Finished')] %}
+    <a href="{{ url_for('books_index', status=s, sort=sort) }}"
+       class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors
+       {% if status_filter == s %}bg-brand-600 text-white{% else %}bg-white text-gray-600 border border-gray-200 hover:border-brand-300{% endif %}">
+      {{ label }}
+      <span class="ml-1 {% if status_filter == s %}text-brand-200{% else %}text-gray-400{% endif %}">
+        {{ status_counts.get(s, 0) }}
+      </span>
+    </a>
+    {% endfor %}
+
+    <div class="ml-auto flex items-center gap-2">
+      <label class="text-sm text-gray-500">Sort:</label>
+      <select onchange="location.href=this.value"
+        class="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300">
+        {% for val, label in [('updated','Last updated'),('title','Title'),('author','Author'),('added','Date added')] %}
+        <option value="{{ url_for('books_index', status=status_filter, sort=val) }}"
+          {% if sort == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Book grid -->
+  {% if books %}
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    {% for book in books %}
+    <a href="{{ url_for('books_detail', book_id=book.id) }}" class="group card-hover bg-white rounded-2xl border border-brand-100 shadow-sm overflow-hidden">
+      <!-- Cover -->
+      <div class="aspect-[2/3] bg-brand-100 flex items-center justify-center overflow-hidden">
+        {% if book.cover_url %}
+          <img src="{{ book.cover_url }}" alt="{{ book.title }}" class="w-full h-full object-cover">
+        {% else %}
+          <div class="flex flex-col items-center gap-2 p-4">
+            <span class="text-4xl">📗</span>
+            <span class="text-xs text-center text-brand-700 font-medium leading-tight">{{ book.title[:30] }}</span>
+          </div>
+        {% endif %}
+      </div>
+      <!-- Info -->
+      <div class="p-3">
+        <div class="text-sm font-medium text-gray-800 truncate group-hover:text-brand-700">{{ book.title }}</div>
+        <div class="text-xs text-gray-500 truncate mb-2">{{ book.author }}</div>
+
+        <!-- Status badge -->
+        <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium
+          {% if book.status == 'reading' %}bg-brand-100 text-brand-700
+          {% elif book.status == 'read' %}bg-green-100 text-green-700
+          {% else %}bg-gray-100 text-gray-600{% endif %}">
+          {% if book.status == 'reading' %}Reading
+          {% elif book.status == 'read' %}Finished
+          {% else %}Want to Read{% endif %}
+        </span>
+
+        <!-- Progress bar for reading books -->
+        {% if book.status == 'reading' and book.total_pages %}
+          {% set pct = (book.current_page / book.total_pages * 100) | int %}
+          <div class="mt-2 bg-gray-100 rounded-full h-1.5">
+            <div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5">{{ pct }}%</div>
+        {% elif book.status == 'reading' %}
+          <div class="text-xs text-gray-400 mt-1">p. {{ book.current_page }}</div>
+        {% endif %}
+
+        <!-- Rating for finished -->
+        {% if book.status == 'read' and book.rating %}
+          <div class="text-xs text-yellow-500 mt-1">{{ '★' * book.rating }}{{ '☆' * (5 - book.rating) }}</div>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-20">
+    <div class="text-6xl mb-4">📚</div>
+    <h2 class="text-xl font-semibold text-gray-700 mb-2">
+      {% if status_filter == 'all' %}Your shelf is empty{% else %}No books here yet{% endif %}
+    </h2>
+    <p class="text-gray-400 mb-6">
+      {% if status_filter == 'reading' %}Start reading a book to see it here
+      {% elif status_filter == 'read' %}Finish a book to see it here
+      {% elif status_filter == 'want_to_read' %}Add books to your reading list
+      {% else %}Add your first book to get started{% endif %}
+    </p>
+    <a href="{{ url_for('books_add') }}"
+       class="inline-block bg-brand-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition-colors">
+      + Add a Book
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

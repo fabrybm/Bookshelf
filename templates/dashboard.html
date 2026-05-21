@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Bookshelf{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="font-serif text-2xl font-bold text-gray-900">
+        Good {% if now().hour < 12 %}morning{% elif now().hour < 17 %}afternoon{% else %}evening{% endif %},
+        {{ session.display_name }} 👋
+      </h1>
+      <p class="text-gray-500 text-sm mt-0.5">Here's your reading overview</p>
+    </div>
+    <a href="{{ url_for('books_add') }}"
+       class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+      + Add Book
+    </a>
+  </div>
+
+  <!-- Stats row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl p-5 border border-brand-100 shadow-sm">
+      <div class="text-3xl font-bold text-brand-700">{{ stats.get('reading', 0) }}</div>
+      <div class="text-sm text-gray-500 mt-1">Currently reading</div>
+      <div class="text-lg mt-1">📖</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-brand-100 shadow-sm">
+      <div class="text-3xl font-bold text-brand-700">{{ stats.get('read', 0) }}</div>
+      <div class="text-sm text-gray-500 mt-1">Books finished</div>
+      <div class="text-lg mt-1">✅</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-brand-100 shadow-sm">
+      <div class="text-3xl font-bold text-brand-700">{{ total_pages | int | format_number }}</div>
+      <div class="text-sm text-gray-500 mt-1">Pages read</div>
+      <div class="text-lg mt-1">📄</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-brand-100 shadow-sm">
+      <div class="text-3xl font-bold text-brand-700">{{ streak }}</div>
+      <div class="text-sm text-gray-500 mt-1">Day streak</div>
+      <div class="text-lg mt-1">🔥</div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6">
+    <!-- Left column: Currently reading + Recent finishes -->
+    <div class="md:col-span-2 space-y-6">
+
+      <!-- Currently Reading -->
+      {% if reading %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">Currently Reading</h2>
+          <a href="{{ url_for('books_index', status='reading') }}" class="text-sm text-brand-600 hover:underline">View all</a>
+        </div>
+        <div class="space-y-4">
+          {% for book in reading %}
+          <a href="{{ url_for('books_detail', book_id=book.id) }}"
+             class="flex gap-4 items-center group card-hover rounded-xl p-2 -mx-2 hover:bg-brand-50 transition-colors block">
+            <div class="w-12 h-16 rounded-lg overflow-hidden bg-brand-100 flex-shrink-0 flex items-center justify-center">
+              {% if book.cover_url %}
+                <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+              {% else %}
+                <span class="text-2xl">📗</span>
+              {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-900 truncate group-hover:text-brand-700">{{ book.title }}</div>
+              <div class="text-sm text-gray-500 truncate">{{ book.author }}</div>
+              <div class="mt-2">
+                {% set pct = ((book.current_page / book.total_pages * 100) | int) if book.total_pages else 0 %}
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                    <div class="bg-brand-500 h-1.5 rounded-full progress-bar" style="width: {{ pct }}%"></div>
+                  </div>
+                  <span class="text-xs text-gray-400 whitespace-nowrap">
+                    {% if book.total_pages %}{{ pct }}%{% else %}p.{{ book.current_page }}{% endif %}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-8 text-center">
+        <div class="text-4xl mb-3">📚</div>
+        <h2 class="font-semibold text-gray-700 mb-1">Nothing in progress</h2>
+        <p class="text-sm text-gray-400 mb-4">Add a book and start reading!</p>
+        <a href="{{ url_for('books_add') }}"
+           class="inline-block bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors">
+          Add your first book
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Recently Finished -->
+      {% if recently_finished %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">Recently Finished</h2>
+          <a href="{{ url_for('books_index', status='read') }}" class="text-sm text-brand-600 hover:underline">View all</a>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {% for book in recently_finished %}
+          <a href="{{ url_for('books_detail', book_id=book.id) }}" class="group card-hover">
+            <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
+              {% if book.cover_url %}
+                <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+              {% else %}
+                <span class="text-3xl">📘</span>
+              {% endif %}
+            </div>
+            <div class="text-xs font-medium text-gray-700 truncate group-hover:text-brand-600">{{ book.title }}</div>
+            {% if book.rating %}
+            <div class="text-xs text-yellow-500 mt-0.5">{{ '★' * book.rating }}{{ '☆' * (5 - book.rating) }}</div>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Recommendations -->
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <h2 class="font-semibold text-gray-800 mb-4">📡 Recommended for You</h2>
+        <div id="recommendations" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="col-span-full text-center text-gray-400 text-sm py-4">Loading recommendations…</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column: Genre chart + Friends feed -->
+    <div class="space-y-6">
+
+      <!-- Genre breakdown -->
+      {% if genres %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <h2 class="font-semibold text-gray-800 mb-4">Your Genres</h2>
+        {% set max_cnt = genres[0].cnt if genres else 1 %}
+        <div class="space-y-2.5">
+          {% for g in genres %}
+          <div>
+            <div class="flex justify-between text-xs text-gray-500 mb-1">
+              <span>{{ g.genre }}</span>
+              <span>{{ g.cnt }}</span>
+            </div>
+            <div class="bg-gray-100 rounded-full h-2">
+              <div class="bg-brand-400 h-2 rounded-full" style="width: {{ (g.cnt / max_cnt * 100) | int }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Want to read -->
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">Want to Read</h2>
+          <span class="text-sm text-gray-400">{{ stats.get('want_to_read', 0) }} books</span>
+        </div>
+        <a href="{{ url_for('books_index', status='want_to_read') }}"
+           class="text-sm text-brand-600 hover:underline">View list →</a>
+      </div>
+
+      <!-- Friends feed -->
+      {% if feed %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">Friends Activity</h2>
+          <a href="{{ url_for('friends_index') }}" class="text-sm text-brand-600 hover:underline">See all</a>
+        </div>
+        <div class="space-y-3">
+          {% for event in feed %}
+          {% set payload = event.payload | fromjson if event.payload else {} %}
+          <div class="flex gap-3 items-start">
+            <div class="w-7 h-7 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-xs flex-shrink-0">
+              {{ event.display_name[0].upper() }}
+            </div>
+            <div class="min-w-0">
+              <span class="text-sm font-medium text-gray-800">{{ event.display_name }}</span>
+              <span class="text-sm text-gray-500">
+                {% if event.event_type == 'started' %} started reading
+                {% elif event.event_type == 'finished' %} finished
+                {% elif event.event_type == 'rated' %} rated
+                {% elif event.event_type == 'added' %} added
+                {% else %}
+                  is {{ payload.get('pct', 0) }}% through
+                {% endif %}
+              </span>
+              <a href="{{ url_for('books_detail', book_id=event.book_id) }}"
+                 class="text-sm font-medium text-brand-700 hover:underline truncate block">
+                {{ event.title }}
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6 text-center">
+        <div class="text-3xl mb-2">👥</div>
+        <p class="text-sm text-gray-500 mb-3">Follow friends to see what they're reading</p>
+        <a href="{{ url_for('friends_index') }}"
+           class="text-sm text-brand-600 hover:underline font-medium">Find friends →</a>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Load recommendations
+fetch('/api/recommendations')
+  .then(r => r.json())
+  .then(books => {
+    const el = document.getElementById('recommendations');
+    if (!books.length) {
+      el.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">Read more books to get personalized recommendations!</div>';
+      return;
+    }
+    el.innerHTML = books.slice(0, 4).map(b => `
+      <a href="/books/add?title=${encodeURIComponent(b.title)}&author=${encodeURIComponent(b.author)}&cover_url=${encodeURIComponent(b.cover_url||'')}&ol_key=${encodeURIComponent(b.ol_key||'')}&genre=${encodeURIComponent(b.genre||'')}"
+         class="group card-hover">
+        <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
+          ${b.cover_url
+            ? `<img src="${b.cover_url}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-3xl\\'>📙</span>'">`
+            : '<span class="text-3xl">📙</span>'}
+        </div>
+        <div class="text-xs font-medium text-gray-700 truncate group-hover:text-brand-600">${b.title}</div>
+        <div class="text-xs text-gray-400 truncate">${b.author}</div>
+        <div class="text-xs text-brand-500 mt-0.5">+ Add</div>
+      </a>
+    `).join('');
+  })
+  .catch(() => {
+    document.getElementById('recommendations').innerHTML =
+      '<div class="col-span-full text-center text-gray-400 text-sm py-4">Recommendations unavailable offline</div>';
+  });
+</script>
+{% endblock %}
