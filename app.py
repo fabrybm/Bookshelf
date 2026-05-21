@@ -1358,6 +1358,19 @@ def clubs_create():
     return redirect(url_for("clubs_room", club_id=club_id))
 
 
+@app.route("/import-db-x7k9q2", methods=["GET", "POST"])
+def import_db():
+    if request.method == "GET":
+        return '''<form method=post enctype=multipart/form-data>
+            <input type=file name=db> <button type=submit>Upload</button></form>'''
+    f = request.files.get("db")
+    if not f:
+        return "no file", 400
+    db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bookshelf.db"))
+    f.save(db_path)
+    return "Done! Remove this route and redeploy."
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True, port=5001)
