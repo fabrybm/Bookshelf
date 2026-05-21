@@ -34,7 +34,7 @@ def init_db():
                 username     TEXT    NOT NULL UNIQUE,
                 password_hash TEXT   NOT NULL,
                 display_name TEXT,
-                created_at   INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at   INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             CREATE TABLE IF NOT EXISTS books (
@@ -53,8 +53,8 @@ def init_db():
                 notes        TEXT,
                 started_at   INTEGER,
                 finished_at  INTEGER,
-                created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
-                updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at   INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
+                updated_at   INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             CREATE TABLE IF NOT EXISTS reading_log (
@@ -63,7 +63,7 @@ def init_db():
                 book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
                 log_date    TEXT    NOT NULL,
                 pages_read  INTEGER NOT NULL DEFAULT 0,
-                created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+                created_at  INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
                 UNIQUE(user_id, book_id, log_date)
             );
 
@@ -71,7 +71,7 @@ def init_db():
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 followee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+                created_at  INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
                 UNIQUE(follower_id, followee_id)
             );
 
@@ -82,7 +82,7 @@ def init_db():
                 event_type  TEXT    NOT NULL
                             CHECK(event_type IN ('started','progress','finished','rated','added')),
                 payload     TEXT,
-                created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at  INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             CREATE INDEX IF NOT EXISTS idx_books_user       ON books(user_id, status);
@@ -101,7 +101,7 @@ def init_db():
                 content       TEXT,
                 video_path    TEXT,
                 like_count    INTEGER NOT NULL DEFAULT 0,
-                created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at    INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             CREATE TABLE IF NOT EXISTS reel_reactions (
@@ -109,7 +109,7 @@ def init_db():
                 user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 reel_id    INTEGER NOT NULL REFERENCES reels(id) ON DELETE CASCADE,
                 reaction   TEXT    NOT NULL CHECK(reaction IN ('like','dislike','save')),
-                created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
                 UNIQUE(user_id, reel_id)
             );
 
@@ -126,8 +126,8 @@ def init_db():
                 milestone_type  TEXT DEFAULT 'page',
                 description     TEXT,
                 member_count    INTEGER NOT NULL DEFAULT 0,
-                created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
-                last_active     INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at      INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
+                last_active     INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             -- Story milestones / chapter events for book clubs
@@ -139,7 +139,7 @@ def init_db():
                 page_approx INTEGER,
                 event_order INTEGER NOT NULL DEFAULT 0,
                 source      TEXT DEFAULT 'manual',
-                created_at  INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at  INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
             CREATE INDEX IF NOT EXISTS idx_milestones_book ON book_milestones(book_title);
 
@@ -147,7 +147,7 @@ def init_db():
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
                 club_id   INTEGER NOT NULL REFERENCES book_clubs(id) ON DELETE CASCADE,
                 user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                joined_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                joined_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
                 UNIQUE(club_id, user_id)
             );
 
@@ -156,7 +156,7 @@ def init_db():
                 club_id    INTEGER NOT NULL REFERENCES book_clubs(id) ON DELETE CASCADE,
                 user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 content    TEXT    NOT NULL,
-                created_at INTEGER NOT NULL DEFAULT (unixepoch())
+                created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
             );
 
             CREATE INDEX IF NOT EXISTS idx_reels_created      ON reels(created_at DESC);
