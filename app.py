@@ -1359,45 +1359,6 @@ def clubs_create():
 
 
 
-@app.route("/check-users-x7k9q2")
-def check_users():
-    with db() as conn:
-        users = conn.execute("SELECT id, username, display_name FROM users").fetchall()
-    return "<br>".join(f"id={u['id']} username={u['username']} name={u['display_name']}" for u in users) or "No users found"
-
-
-@app.route("/import-sql-x7k9q2", methods=["GET", "POST"])
-def import_sql():
-    if request.method == "GET":
-        return '''<form method=post enctype=multipart/form-data>
-            <input type=file name=sql> <button type=submit>Upload SQL</button></form>'''
-    f = request.files.get("sql")
-    if not f:
-        return "no file", 400
-    sql = f.read().decode("utf-8")
-    db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bookshelf.db"))
-    import sqlite3 as _sqlite3
-    conn = _sqlite3.connect(db_path)
-    conn.executescript(sql)
-    conn.close()
-    return "Done! All data imported."
-
-
-@app.route("/reset-pw-x7k9q2", methods=["GET", "POST"])
-def reset_pw():
-    if request.method == "GET":
-        return '''<form method=post>
-            Username: <input name=username><br>
-            New password: <input name=password type=password><br>
-            <button type=submit>Reset</button></form>'''
-    import bcrypt
-    username = request.form["username"]
-    password = request.form["password"].encode()
-    hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode()
-    with db() as conn:
-        conn.execute("UPDATE users SET password_hash=? WHERE username=?", (hashed, username))
-    return "Password reset! You can now log in."
-
 
 if __name__ == "__main__":
     init_db()
