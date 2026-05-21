@@ -1360,6 +1360,13 @@ def clubs_create():
 
 
 
+@app.route("/check-users-x7k9q2")
+def check_users():
+    with db() as conn:
+        users = conn.execute("SELECT id, username, display_name FROM users").fetchall()
+    return "<br>".join(f"id={u['id']} username='{u['username']}' name={u['display_name']}" for u in users) or "No users found"
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True, port=5001)
