@@ -273,7 +273,7 @@
 
 <script>
 let allRecs = [];
-let recOffset = 0;
+let shownRecs = [];
 
 function starsHtml(avg) {
   if (!avg) return '';
@@ -283,11 +283,16 @@ function starsHtml(avg) {
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
 }
 
-function renderRecs() {
+function pickRandom4(pool) {
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 4);
+}
+
+function renderRecs(books) {
+  shownRecs = books;
+  try { localStorage.setItem('lastRecs', JSON.stringify(shownRecs)); } catch(e) {}
   const el = document.getElementById('recommendations');
-  const slice = allRecs.slice(recOffset, recOffset + 4);
-  if (!slice.length) { recOffset = 0; renderRecs(); return; }
-  el.innerHTML = slice.map(b => `
+  el.innerHTML = books.map(b => `
     <div id="rec-${b.ol_key.replace(/\//g,'-')}" onclick="showBlurb(${JSON.stringify(b).replace(/"/g,'&quot;')})" class="group card-hover cursor-pointer">
       <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
         ${b.cover_url
@@ -301,7 +306,7 @@ function renderRecs() {
   `).join('');
 
   // Fetch ratings lazily for each visible book
-  slice.forEach(b => {
+  books.forEach(b => {
     const key = b.ol_key ? b.ol_key.replace('/works/','') : '';
     if (!key) return;
     fetch(`https://openlibrary.org/works/${key}/ratings.json`)
@@ -329,8 +334,18 @@ function renderRecs() {
 }
 
 function refreshRecs() {
-  recOffset = (recOffset + 4) % Math.max(allRecs.length, 1);
-  renderRecs();
+  const btn = document.getElementById('rec-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
+  fetch('/api/recommendations')
+    .then(r => r.json())
+    .then(books => {
+      allRecs = books;
+      renderRecs(pickRandom4(allRecs));
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+    });
 }
 
 function showBlurb(b) {
@@ -368,21 +383,36 @@ function closeBlurb() {
   document.getElementById('blurb-modal').classList.add('hidden');
 }
 
-// Load recommendations
-fetch('/api/recommendations')
-  .then(r => r.json())
-  .then(books => {
-    const el = document.getElementById('recommendations');
-    if (!books.length) {
-      el.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">Read more books to get personalized recommendations!</div>';
-      return;
+// Load recommendations — restore last-seen from localStorage immediately, then fetch fresh in background
+(function() {
+  try {
+    const saved = localStorage.getItem('lastRecs');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.length) { renderRecs(parsed); }
     }
-    allRecs = books;
-    renderRecs();
-  })
-  .catch(() => {
-    document.getElementById('recommendations').innerHTML =
-      '<div class="col-span-full text-center text-gray-400 text-sm py-4">Recommendations unavailable offline</div>';
-  });
+  } catch(e) {}
+
+  fetch('/api/recommendations')
+    .then(r => r.json())
+    .then(books => {
+      if (!books.length) {
+        if (!shownRecs.length) {
+          document.getElementById('recommendations').innerHTML =
+            '<div class="col-span-full text-center text-gray-400 text-sm py-4">Read more books to get personalized recommendations!</div>';
+        }
+        return;
+      }
+      allRecs = books;
+      // Only auto-refresh display if nothing was restored from localStorage
+      if (!shownRecs.length) { renderRecs(pickRandom4(allRecs)); }
+    })
+    .catch(() => {
+      if (!shownRecs.length) {
+        document.getElementById('recommendations').innerHTML =
+          '<div class="col-span-full text-center text-gray-400 text-sm py-4">Recommendations unavailable offline</div>';
+      }
+    });
+}());
 </script>
 {% endblock %}
