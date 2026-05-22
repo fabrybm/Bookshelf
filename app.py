@@ -488,6 +488,17 @@ def books_progress(book_id):
 # Friends
 # ---------------------------------------------------------------------------
 
+@app.route("/api/notifications/count")
+@login_required
+def notifications_count():
+    user_id = session["user_id"]
+    with db() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM notifications WHERE user_id=? AND read=0", (user_id,)
+        ).fetchone()[0]
+    return jsonify(count=count)
+
+
 @app.route("/friends")
 @login_required
 def friends_index():
@@ -519,6 +530,18 @@ def friends_index():
 
         following_ids = {r["id"] for r in following}
 
+        # Unread follow notifications
+        new_followers = conn.execute("""
+            SELECT u.id, u.username, u.display_name, n.id as notif_id
+            FROM notifications n
+            JOIN users u ON u.id = n.from_user_id
+            WHERE n.user_id = ? AND n.type = 'follow' AND n.read = 0
+            ORDER BY n.created_at DESC
+        """, (user_id,)).fetchall()
+
+        # Mark them read
+        conn.execute("UPDATE notifications SET read=1 WHERE user_id=? AND type='follow'", (user_id,))
+
         # Activity feed from people I follow
         feed = conn.execute("""
             SELECT fe.event_type, fe.payload, fe.created_at,
@@ -535,6 +558,7 @@ def friends_index():
         following=following,
         followers=list(followers),
         following_ids=following_ids,
+        new_followers=new_followers,
         feed=feed,
         user=get_current_user()
     )
@@ -558,6 +582,10 @@ def friends_add():
                 conn.execute(
                     "INSERT INTO friendships (follower_id, followee_id) VALUES (?, ?)",
                     (user_id, target["id"])
+                )
+                conn.execute(
+                    "INSERT INTO notifications (user_id, type, from_user_id) VALUES (?, 'follow', ?)",
+                    (target["id"], user_id)
                 )
                 flash(f'Now following {target["display_name"]}!', "success")
             except Exception:

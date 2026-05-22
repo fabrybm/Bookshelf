@@ -163,6 +163,15 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_reel_reactions_user ON reel_reactions(user_id, reel_id);
             CREATE INDEX IF NOT EXISTS idx_club_messages      ON book_club_messages(club_id, created_at);
             CREATE INDEX IF NOT EXISTS idx_club_members       ON book_club_members(club_id, user_id);
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                type        TEXT    NOT NULL,
+                from_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                read        INTEGER NOT NULL DEFAULT 0,
+                created_at  INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
+            );
         """)
 
         # Add video_path column to existing reels table if missing

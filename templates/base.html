@@ -72,9 +72,10 @@
             📖 Clubs
           </a>
           <a href="{{ url_for('friends_index') }}"
-             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors
+             class="px-3 py-2 rounded-lg text-sm font-medium transition-colors relative
              {% if 'friends' in request.endpoint %}bg-brand-100 text-brand-800{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
             Friends
+            <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold"></span>
           </a>
         </div>
         <!-- User menu -->
@@ -141,6 +142,25 @@
   <main class="{% if session.user_id %}pb-16 md:pb-0{% endif %}">
     {% block content %}{% endblock %}
   </main>
+
+  {% if session.user_id %}
+  <script>
+    function checkNotifs() {
+      fetch('/api/notifications/count').then(r => r.json()).then(data => {
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        if (data.count > 0) {
+          badge.textContent = data.count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }).catch(() => {});
+    }
+    checkNotifs();
+    setInterval(checkNotifs, 30000);
+  </script>
+  {% endif %}
 
 </body>
 </html>
