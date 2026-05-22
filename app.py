@@ -724,12 +724,14 @@ def api_search():
 @app.route("/api/recommendations")
 @login_required
 def api_recommendations():
+    import random
+    from flask import make_response
     user_id = session["user_id"]
     with db() as conn:
         top_genres = conn.execute("""
             SELECT genre, COUNT(*) as cnt FROM books
             WHERE user_id = ? AND genre IS NOT NULL AND genre != ''
-            GROUP BY genre ORDER BY cnt DESC LIMIT 2
+            GROUP BY genre ORDER BY cnt DESC LIMIT 3
         """, (user_id,)).fetchall()
 
         existing_keys = {r["ol_key"] for r in conn.execute(
@@ -746,11 +748,15 @@ def api_recommendations():
         genre = genre_row["genre"]
         try:
             encoded = urllib.parse.quote(genre.lower().replace(" ", "_"))
-            url = f"https://openlibrary.org/subjects/{encoded}.json?limit=10"
+            # Randomize page offset so each call gets different books
+            page_offset = random.randint(0, 40)
+            url = f"https://openlibrary.org/subjects/{encoded}.json?limit=30&offset={page_offset}"
             req = urllib.request.Request(url, headers={"User-Agent": "Bookshelf/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=6) as resp:
                 data = json.loads(resp.read())
-            for work in data.get("works", []):
+            works = data.get("works", [])
+            random.shuffle(works)
+            for work in works:
                 key = work.get("key", "")
                 if key in seen_keys:
                     continue
@@ -764,14 +770,13 @@ def api_recommendations():
                     "cover_url": f"https://covers.openlibrary.org/b/id/{cover}-M.jpg" if cover else None,
                     "genre": genre,
                 })
-                if len(results) >= 8:
-                    break
         except Exception:
             continue
-        if len(results) >= 8:
-            break
 
-    return jsonify(results)
+    random.shuffle(results)
+    resp = make_response(jsonify(results[:20]))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 # ---------------------------------------------------------------------------

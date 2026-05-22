@@ -336,7 +336,7 @@ function renderRecs(books) {
 function refreshRecs() {
   const btn = document.getElementById('rec-refresh');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
-  fetch('/api/recommendations')
+  fetch('/api/recommendations?t=' + Date.now())
     .then(r => r.json())
     .then(books => {
       allRecs = books;
