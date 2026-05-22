@@ -142,7 +142,8 @@
             <img id="blurb-cover" src="" class="w-20 h-28 object-cover rounded-xl shadow-md flex-shrink-0" onerror="this.style.display='none'">
             <div class="flex-1 min-w-0">
               <div id="blurb-title" class="font-bold text-gray-900 text-lg leading-tight mb-1"></div>
-              <div id="blurb-author" class="text-sm text-gray-500 mb-2"></div>
+              <div id="blurb-author" class="text-sm text-gray-500 mb-1"></div>
+              <div id="blurb-rating" class="text-sm text-yellow-500 mb-2"></div>
               <span id="blurb-genre" class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full"></span>
             </div>
           </div>
@@ -274,12 +275,20 @@
 let allRecs = [];
 let recOffset = 0;
 
+function starsHtml(avg) {
+  if (!avg) return '';
+  const full = Math.floor(avg);
+  const half = avg - full >= 0.4 ? 1 : 0;
+  const empty = 5 - full - half;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+}
+
 function renderRecs() {
   const el = document.getElementById('recommendations');
   const slice = allRecs.slice(recOffset, recOffset + 4);
   if (!slice.length) { recOffset = 0; renderRecs(); return; }
   el.innerHTML = slice.map(b => `
-    <div onclick="showBlurb(${JSON.stringify(b).replace(/"/g,'&quot;')})" class="group card-hover cursor-pointer">
+    <div id="rec-${b.ol_key.replace(/\//g,'-')}" onclick="showBlurb(${JSON.stringify(b).replace(/"/g,'&quot;')})" class="group card-hover cursor-pointer">
       <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
         ${b.cover_url
           ? `<img src="${b.cover_url}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-3xl\\'>📙</span>'">`
@@ -287,9 +296,36 @@ function renderRecs() {
       </div>
       <div class="text-xs font-medium text-gray-700 truncate group-hover:text-brand-600">${b.title}</div>
       <div class="text-xs text-gray-400 truncate">${b.author}</div>
-      <div class="text-xs text-brand-500 mt-0.5">Tap for blurb</div>
+      <div class="rec-rating-${b.ol_key.replace(/\//g,'-')} text-xs text-yellow-500 mt-0.5">…</div>
     </div>
   `).join('');
+
+  // Fetch ratings lazily for each visible book
+  slice.forEach(b => {
+    const key = b.ol_key ? b.ol_key.replace('/works/','') : '';
+    if (!key) return;
+    fetch(`https://openlibrary.org/works/${key}/ratings.json`)
+      .then(r => r.json())
+      .then(data => {
+        const avg = data?.summary?.average;
+        const count = data?.summary?.count;
+        const ratingEl = document.querySelector(`.rec-rating-${b.ol_key.replace(/\//g,'-')}`);
+        if (ratingEl) {
+          if (avg) {
+            b.rating = avg;
+            b.rating_count = count;
+            ratingEl.textContent = `${starsHtml(avg)} ${avg.toFixed(1)}`;
+          } else {
+            ratingEl.textContent = 'No rating yet';
+            ratingEl.classList.replace('text-yellow-500','text-gray-400');
+          }
+        }
+      })
+      .catch(() => {
+        const ratingEl = document.querySelector(`.rec-rating-${b.ol_key.replace(/\//g,'-')}`);
+        if (ratingEl) { ratingEl.textContent = ''; }
+      });
+  });
 }
 
 function refreshRecs() {
@@ -302,6 +338,8 @@ function showBlurb(b) {
   document.getElementById('blurb-title').textContent = b.title;
   document.getElementById('blurb-author').textContent = b.author;
   document.getElementById('blurb-genre').textContent = b.genre || '';
+  const ratingEl = document.getElementById('blurb-rating');
+  ratingEl.textContent = b.rating ? `${starsHtml(b.rating)} ${b.rating.toFixed(1)} (${b.rating_count?.toLocaleString() || '?'} ratings)` : '';
   document.getElementById('blurb-text').textContent = 'Loading…';
   document.getElementById('blurb-add').href =
     `/books/add?title=${encodeURIComponent(b.title)}&author=${encodeURIComponent(b.author)}&cover_url=${encodeURIComponent(b.cover_url||'')}&ol_key=${encodeURIComponent(b.ol_key||'')}&genre=${encodeURIComponent(b.genre||'')}`;
