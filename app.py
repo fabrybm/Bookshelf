@@ -1418,22 +1418,6 @@ def clubs_create():
 
 
 
-@app.route("/import-sql-x7k9q2", methods=["GET", "POST"])
-def import_sql():
-    if request.method == "GET":
-        return '''<form method=post enctype=multipart/form-data>
-            <input type=file name=sql> <button type=submit>Upload SQL</button></form>'''
-    f = request.files.get("sql")
-    if not f:
-        return "no file", 400
-    sql = f.read().decode("utf-8")
-    db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bookshelf.db"))
-    import sqlite3 as _sqlite3
-    conn = _sqlite3.connect(db_path)
-    conn.executescript(sql)
-    conn.close()
-    return "Done! All data imported."
-
 
 if __name__ == "__main__":
     init_db()
