@@ -124,9 +124,30 @@
 
       <!-- Recommendations -->
       <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
-        <h2 class="font-semibold text-gray-800 mb-4">📡 Recommended for You</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">📡 Recommended for You</h2>
+          <button id="rec-refresh" onclick="refreshRecs()" class="text-xs text-brand-600 hover:text-brand-800 border border-brand-200 px-2 py-1 rounded-lg transition-colors">↻ Refresh</button>
+        </div>
         <div id="recommendations" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div class="col-span-full text-center text-gray-400 text-sm py-4">Loading recommendations…</div>
+        </div>
+      </div>
+
+      <!-- Book blurb modal -->
+      <div id="blurb-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" onclick="closeBlurb()"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 z-10">
+          <button onclick="closeBlurb()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <div class="flex gap-4 mb-4">
+            <img id="blurb-cover" src="" class="w-20 h-28 object-cover rounded-xl shadow-md flex-shrink-0" onerror="this.style.display='none'">
+            <div class="flex-1 min-w-0">
+              <div id="blurb-title" class="font-bold text-gray-900 text-lg leading-tight mb-1"></div>
+              <div id="blurb-author" class="text-sm text-gray-500 mb-2"></div>
+              <span id="blurb-genre" class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full"></span>
+            </div>
+          </div>
+          <p id="blurb-text" class="text-sm text-gray-600 leading-relaxed mb-5">Loading…</p>
+          <a id="blurb-add" href="#" class="block w-full text-center bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl font-medium text-sm transition-colors">+ Add to shelf</a>
         </div>
       </div>
 
@@ -250,6 +271,65 @@
 </div>
 
 <script>
+let allRecs = [];
+let recOffset = 0;
+
+function renderRecs() {
+  const el = document.getElementById('recommendations');
+  const slice = allRecs.slice(recOffset, recOffset + 4);
+  if (!slice.length) { recOffset = 0; renderRecs(); return; }
+  el.innerHTML = slice.map(b => `
+    <div onclick="showBlurb(${JSON.stringify(b).replace(/"/g,'&quot;')})" class="group card-hover cursor-pointer">
+      <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
+        ${b.cover_url
+          ? `<img src="${b.cover_url}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-3xl\\'>📙</span>'">`
+          : '<span class="text-3xl">📙</span>'}
+      </div>
+      <div class="text-xs font-medium text-gray-700 truncate group-hover:text-brand-600">${b.title}</div>
+      <div class="text-xs text-gray-400 truncate">${b.author}</div>
+      <div class="text-xs text-brand-500 mt-0.5">Tap for blurb</div>
+    </div>
+  `).join('');
+}
+
+function refreshRecs() {
+  recOffset = (recOffset + 4) % Math.max(allRecs.length, 1);
+  renderRecs();
+}
+
+function showBlurb(b) {
+  document.getElementById('blurb-cover').src = b.cover_url || '';
+  document.getElementById('blurb-title').textContent = b.title;
+  document.getElementById('blurb-author').textContent = b.author;
+  document.getElementById('blurb-genre').textContent = b.genre || '';
+  document.getElementById('blurb-text').textContent = 'Loading…';
+  document.getElementById('blurb-add').href =
+    `/books/add?title=${encodeURIComponent(b.title)}&author=${encodeURIComponent(b.author)}&cover_url=${encodeURIComponent(b.cover_url||'')}&ol_key=${encodeURIComponent(b.ol_key||'')}&genre=${encodeURIComponent(b.genre||'')}`;
+  document.getElementById('blurb-modal').classList.remove('hidden');
+
+  // Fetch blurb from Open Library
+  const key = b.ol_key ? b.ol_key.replace('/works/','') : '';
+  if (!key) { document.getElementById('blurb-text').textContent = 'No description available.'; return; }
+  fetch(`https://openlibrary.org/works/${key}.json`)
+    .then(r => r.json())
+    .then(data => {
+      let desc = data.description;
+      if (desc && typeof desc === 'object') desc = desc.value;
+      desc = (desc || '').replace(/\n+/g,' ').trim();
+      // Trim to ~300 chars at a sentence boundary to avoid spoilers
+      if (desc.length > 300) {
+        const cut = desc.lastIndexOf('.', 300);
+        desc = cut > 80 ? desc.slice(0, cut + 1) : desc.slice(0, 300) + '…';
+      }
+      document.getElementById('blurb-text').textContent = desc || 'No description available.';
+    })
+    .catch(() => { document.getElementById('blurb-text').textContent = 'No description available.'; });
+}
+
+function closeBlurb() {
+  document.getElementById('blurb-modal').classList.add('hidden');
+}
+
 // Load recommendations
 fetch('/api/recommendations')
   .then(r => r.json())
@@ -259,19 +339,8 @@ fetch('/api/recommendations')
       el.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-4">Read more books to get personalized recommendations!</div>';
       return;
     }
-    el.innerHTML = books.slice(0, 4).map(b => `
-      <a href="/books/add?title=${encodeURIComponent(b.title)}&author=${encodeURIComponent(b.author)}&cover_url=${encodeURIComponent(b.cover_url||'')}&ol_key=${encodeURIComponent(b.ol_key||'')}&genre=${encodeURIComponent(b.genre||'')}"
-         class="group card-hover">
-        <div class="aspect-[2/3] rounded-xl overflow-hidden bg-brand-100 flex items-center justify-center mb-2">
-          ${b.cover_url
-            ? `<img src="${b.cover_url}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-3xl\\'>📙</span>'">`
-            : '<span class="text-3xl">📙</span>'}
-        </div>
-        <div class="text-xs font-medium text-gray-700 truncate group-hover:text-brand-600">${b.title}</div>
-        <div class="text-xs text-gray-400 truncate">${b.author}</div>
-        <div class="text-xs text-brand-500 mt-0.5">+ Add</div>
-      </a>
-    `).join('');
+    allRecs = books;
+    renderRecs();
   })
   .catch(() => {
     document.getElementById('recommendations').innerHTML =
