@@ -387,7 +387,7 @@ def books_edit(book_id):
 
         conn.execute("""
             UPDATE books SET title=?, author=?, cover_url=?, genre=?,
-                total_pages=?, notes=?, rating=?, updated_at=unixepoch()
+                total_pages=?, notes=?, rating=?, updated_at=CAST(strftime('%s','now') AS INTEGER)
             WHERE id = ? AND user_id = ?
         """, (title, author, cover_url, genre, total_pages, notes, rating, book_id, user_id))
 
@@ -1298,7 +1298,7 @@ def clubs_message(club_id):
             (club_id, user_id, content)
         )
         conn.execute(
-            "UPDATE book_clubs SET last_active=unixepoch() WHERE id=?", (club_id,)
+            "UPDATE book_clubs SET last_active=CAST(strftime('%s','now') AS INTEGER) WHERE id=?", (club_id,)
         )
     return redirect(url_for("clubs_room", club_id=club_id))
 
