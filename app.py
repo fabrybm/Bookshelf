@@ -193,6 +193,17 @@ def dashboard():
             ORDER BY fe.created_at DESC LIMIT 10
         """, (user_id,)).fetchall()
 
+        # Friends currently reading
+        friends_reading = conn.execute("""
+            SELECT u.username, u.display_name,
+                   b.title, b.author, b.cover_url, b.current_page, b.total_pages
+            FROM friendships f
+            JOIN users u ON u.id = f.followee_id
+            JOIN books b ON b.user_id = u.id AND b.status = 'reading'
+            WHERE f.follower_id = ?
+            ORDER BY b.updated_at DESC
+        """, (user_id,)).fetchall()
+
     return render_template("dashboard.html",
         stats=stats,
         total_pages=total_pages,
@@ -201,6 +212,7 @@ def dashboard():
         recently_finished=recently_finished,
         genres=list(genres),
         feed=list(feed),
+        friends_reading=list(friends_reading),
         user=get_current_user()
     )
 
@@ -649,6 +661,22 @@ def friends_profile(username):
             WHERE user_id = ? GROUP BY status
         """, (profile_user["id"],)).fetchall()
 
+        profile_following = conn.execute("""
+            SELECT u.id, u.username, u.display_name
+            FROM friendships f JOIN users u ON u.id = f.followee_id
+            WHERE f.follower_id = ?
+        """, (profile_user["id"],)).fetchall()
+
+        profile_followers = conn.execute("""
+            SELECT u.id, u.username, u.display_name
+            FROM friendships f JOIN users u ON u.id = f.follower_id
+            WHERE f.followee_id = ?
+        """, (profile_user["id"],)).fetchall()
+
+        my_following_ids = {r["id"] for r in conn.execute(
+            "SELECT followee_id as id FROM friendships WHERE follower_id=?", (user_id,)
+        ).fetchall()}
+
     return render_template("friends/profile.html",
         profile=profile_user,
         is_following=is_following,
@@ -656,6 +684,9 @@ def friends_profile(username):
         finished=finished,
         want_to_read=want_to_read,
         stats={r["status"]: r["cnt"] for r in stats},
+        profile_following=list(profile_following),
+        profile_followers=list(profile_followers),
+        my_following_ids=my_following_ids,
         user=get_current_user()
     )
 

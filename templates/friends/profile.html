@@ -36,7 +36,7 @@
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-gray-100">
+    <div class="grid grid-cols-5 gap-2 mt-6 pt-5 border-t border-gray-100">
       <div class="text-center">
         <div class="text-2xl font-bold text-brand-700">{{ stats.get('read', 0) }}</div>
         <div class="text-xs text-gray-500 mt-0.5">Books read</div>
@@ -49,6 +49,68 @@
         <div class="text-2xl font-bold text-brand-700">{{ stats.get('want_to_read', 0) }}</div>
         <div class="text-xs text-gray-500 mt-0.5">Want to read</div>
       </div>
+      <button onclick="document.getElementById('following-panel').classList.toggle('hidden')"
+              class="text-center cursor-pointer hover:opacity-70 transition-opacity">
+        <div class="text-2xl font-bold text-brand-700">{{ profile_following | length }}</div>
+        <div class="text-xs text-gray-500 mt-0.5">Following</div>
+      </button>
+      <button onclick="document.getElementById('followers-panel').classList.toggle('hidden')"
+              class="text-center cursor-pointer hover:opacity-70 transition-opacity">
+        <div class="text-2xl font-bold text-brand-700">{{ profile_followers | length }}</div>
+        <div class="text-xs text-gray-500 mt-0.5">Followers</div>
+      </button>
+    </div>
+
+    <!-- Following panel -->
+    <div id="following-panel" class="hidden mt-4 pt-4 border-t border-gray-100">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Following</div>
+      {% if profile_following %}
+      <div class="space-y-2">
+        {% for f in profile_following %}
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-xs flex-shrink-0">{{ f.display_name[0].upper() }}</div>
+          <div class="flex-1 min-w-0">
+            <a href="{{ url_for('friends_profile', username=f.username) }}" class="text-sm font-medium text-gray-800 hover:text-brand-700">{{ f.display_name }}</a>
+            <div class="text-xs text-gray-400">@{{ f.username }}</div>
+          </div>
+          {% if f.id != session.user_id and f.id not in my_following_ids %}
+          <form method="POST" action="{{ url_for('friends_add') }}">
+            <input type="hidden" name="username" value="{{ f.username }}">
+            <button class="text-xs text-brand-600 hover:text-brand-700 font-medium">Follow</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-400">Not following anyone yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Followers panel -->
+    <div id="followers-panel" class="hidden mt-4 pt-4 border-t border-gray-100">
+      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Followers</div>
+      {% if profile_followers %}
+      <div class="space-y-2">
+        {% for f in profile_followers %}
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs flex-shrink-0">{{ f.display_name[0].upper() }}</div>
+          <div class="flex-1 min-w-0">
+            <a href="{{ url_for('friends_profile', username=f.username) }}" class="text-sm font-medium text-gray-800 hover:text-brand-700">{{ f.display_name }}</a>
+            <div class="text-xs text-gray-400">@{{ f.username }}</div>
+          </div>
+          {% if f.id != session.user_id and f.id not in my_following_ids %}
+          <form method="POST" action="{{ url_for('friends_add') }}">
+            <input type="hidden" name="username" value="{{ f.username }}">
+            <button class="text-xs text-brand-600 hover:text-brand-700 font-medium">Follow</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-400">No followers yet.</p>
+      {% endif %}
     </div>
   </div>
 

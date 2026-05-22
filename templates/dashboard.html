@@ -209,6 +209,42 @@
       </div>
       {% endif %}
 
+      {% if friends_reading %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">Friends Reading Now</h2>
+          <a href="{{ url_for('friends_index') }}" class="text-sm text-brand-600 hover:underline">See all</a>
+        </div>
+        <div class="space-y-4">
+          {% for f in friends_reading %}
+          <div class="flex gap-3 items-center">
+            <a href="{{ url_for('friends_profile', username=f.username) }}">
+              <div class="w-8 h-8 bg-brand-200 rounded-full flex items-center justify-center text-brand-800 font-bold text-sm flex-shrink-0">
+                {{ f.display_name[0].upper() }}
+              </div>
+            </a>
+            {% if f.cover_url %}
+            <img src="{{ f.cover_url }}" class="w-9 h-12 rounded object-cover flex-shrink-0 shadow-sm">
+            {% endif %}
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">{{ f.title }}</div>
+              <div class="text-xs text-gray-400 truncate">{{ f.author }} · <a href="{{ url_for('friends_profile', username=f.username) }}" class="text-brand-600 hover:underline">{{ f.display_name }}</a></div>
+              {% if f.total_pages and f.current_page %}
+              {% set pct = (f.current_page / f.total_pages * 100) | int %}
+              <div class="mt-1 flex items-center gap-2">
+                <div class="flex-1 bg-gray-100 rounded-full h-1">
+                  <div class="bg-brand-400 h-1 rounded-full" style="width:{{ pct }}%"></div>
+                </div>
+                <span class="text-xs text-gray-400">{{ pct }}%</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </div>
