@@ -95,6 +95,49 @@
       </div>
       {% endif %}
 
+      <!-- Daily Reading Log -->
+      {% if reading %}
+      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-gray-800">📝 Today's Log</h2>
+          <span class="text-xs text-gray-400">Update your current page</span>
+        </div>
+        <div class="space-y-4" id="log-books">
+          {% for book in reading %}
+          <div class="flex gap-3 items-center" id="log-row-{{ book.id }}">
+            <div class="w-10 h-14 rounded-lg overflow-hidden bg-brand-100 flex-shrink-0 flex items-center justify-center">
+              {% if book.cover_url %}
+                <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+              {% else %}
+                <span class="text-xl">📗</span>
+              {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">{{ book.title }}</div>
+              <div class="text-xs text-gray-400 mb-2">
+                page <span id="log-cur-{{ book.id }}">{{ book.current_page }}</span>
+                {% if book.total_pages %} / {{ book.total_pages }}{% endif %}
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="number" min="0" {% if book.total_pages %}max="{{ book.total_pages }}"{% endif %}
+                  placeholder="I'm on page…"
+                  value="{{ book.current_page or '' }}"
+                  class="w-36 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                  id="log-input-{{ book.id }}"
+                  onkeydown="if(event.key==='Enter') logPage({{ book.id }})">
+                <button onclick="logPage({{ book.id }})"
+                  class="text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+                  Save
+                </button>
+                <span id="log-msg-{{ book.id }}" class="text-xs text-green-600 hidden">✓ Saved!</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Recently Finished -->
       {% if recently_finished %}
       <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
@@ -272,6 +315,25 @@
 </div>
 
 <script>
+function logPage(bookId) {
+  const input = document.getElementById('log-input-' + bookId);
+  const page = parseInt(input.value);
+  if (isNaN(page) || page < 0) return;
+  fetch('/api/books/' + bookId + '/progress', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({current_page: page})
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('log-cur-' + bookId).textContent = data.current_page;
+    const msg = document.getElementById('log-msg-' + bookId);
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 2000);
+  })
+  .catch(() => {});
+}
+
 let allRecs = [];
 let shownRecs = [];
 
