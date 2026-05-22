@@ -55,31 +55,46 @@
         </div>
         <div class="space-y-4">
           {% for book in reading %}
-          <a href="{{ url_for('books_detail', book_id=book.id) }}"
-             class="flex gap-4 items-center group card-hover rounded-xl p-2 -mx-2 hover:bg-brand-50 transition-colors block">
-            <div class="w-12 h-16 rounded-lg overflow-hidden bg-brand-100 flex-shrink-0 flex items-center justify-center">
-              {% if book.cover_url %}
-                <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
-              {% else %}
-                <span class="text-2xl">📗</span>
-              {% endif %}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-gray-900 truncate group-hover:text-brand-700">{{ book.title }}</div>
-              <div class="text-sm text-gray-500 truncate">{{ book.author }}</div>
-              <div class="mt-2">
-                {% set pct = ((book.current_page / book.total_pages * 100) | int) if book.total_pages else 0 %}
-                <div class="flex items-center gap-2">
-                  <div class="flex-1 bg-gray-100 rounded-full h-1.5">
-                    <div class="bg-brand-500 h-1.5 rounded-full progress-bar" style="width: {{ pct }}%"></div>
+          <div class="rounded-xl p-2 -mx-2">
+            <a href="{{ url_for('books_detail', book_id=book.id) }}"
+               class="flex gap-4 items-center group card-hover hover:bg-brand-50 transition-colors rounded-xl">
+              <div class="w-12 h-16 rounded-lg overflow-hidden bg-brand-100 flex-shrink-0 flex items-center justify-center">
+                {% if book.cover_url %}
+                  <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
+                {% else %}
+                  <span class="text-2xl">📗</span>
+                {% endif %}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-gray-900 truncate group-hover:text-brand-700">{{ book.title }}</div>
+                <div class="text-sm text-gray-500 truncate">{{ book.author }}</div>
+                <div class="mt-2">
+                  {% set pct = ((book.current_page / book.total_pages * 100) | int) if book.total_pages else 0 %}
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                      <div class="bg-brand-500 h-1.5 rounded-full" id="prog-bar-{{ book.id }}" style="width: {{ pct }}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-400 whitespace-nowrap" id="prog-label-{{ book.id }}">
+                      {% if book.total_pages %}{{ pct }}%{% else %}p.{{ book.current_page }}{% endif %}
+                    </span>
                   </div>
-                  <span class="text-xs text-gray-400 whitespace-nowrap">
-                    {% if book.total_pages %}{{ pct }}%{% else %}p.{{ book.current_page }}{% endif %}
-                  </span>
                 </div>
               </div>
+            </a>
+            <div class="flex items-center gap-2 mt-2 ml-16">
+              <input type="number" min="0" {% if book.total_pages %}max="{{ book.total_pages }}"{% endif %}
+                placeholder="I'm on page…"
+                value="{{ book.current_page or '' }}"
+                class="w-36 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                id="log-input-{{ book.id }}"
+                onkeydown="if(event.key==='Enter') logPage({{ book.id }}, {{ book.total_pages or 0 }})">
+              <button onclick="logPage({{ book.id }}, {{ book.total_pages or 0 }})"
+                class="text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+                Save
+              </button>
+              <span id="log-msg-{{ book.id }}" class="text-xs text-green-600 hidden">✓ Saved!</span>
             </div>
-          </a>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -92,49 +107,6 @@
            class="inline-block bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors">
           Add your first book
         </a>
-      </div>
-      {% endif %}
-
-      <!-- Daily Reading Log -->
-      {% if reading %}
-      <div class="bg-white rounded-2xl border border-brand-100 shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-gray-800">📝 Today's Log</h2>
-          <span class="text-xs text-gray-400">Update your current page</span>
-        </div>
-        <div class="space-y-4" id="log-books">
-          {% for book in reading %}
-          <div class="flex gap-3 items-center" id="log-row-{{ book.id }}">
-            <div class="w-10 h-14 rounded-lg overflow-hidden bg-brand-100 flex-shrink-0 flex items-center justify-center">
-              {% if book.cover_url %}
-                <img src="{{ book.cover_url }}" alt="" class="w-full h-full object-cover">
-              {% else %}
-                <span class="text-xl">📗</span>
-              {% endif %}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium text-gray-800 truncate">{{ book.title }}</div>
-              <div class="text-xs text-gray-400 mb-2">
-                page <span id="log-cur-{{ book.id }}">{{ book.current_page }}</span>
-                {% if book.total_pages %} / {{ book.total_pages }}{% endif %}
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="number" min="0" {% if book.total_pages %}max="{{ book.total_pages }}"{% endif %}
-                  placeholder="I'm on page…"
-                  value="{{ book.current_page or '' }}"
-                  class="w-36 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-300"
-                  id="log-input-{{ book.id }}"
-                  onkeydown="if(event.key==='Enter') logPage({{ book.id }})">
-                <button onclick="logPage({{ book.id }})"
-                  class="text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-                  Save
-                </button>
-                <span id="log-msg-{{ book.id }}" class="text-xs text-green-600 hidden">✓ Saved!</span>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
       </div>
       {% endif %}
 
@@ -315,7 +287,7 @@
 </div>
 
 <script>
-function logPage(bookId) {
+function logPage(bookId, totalPages) {
   const input = document.getElementById('log-input-' + bookId);
   const page = parseInt(input.value);
   if (isNaN(page) || page < 0) return;
@@ -326,7 +298,18 @@ function logPage(bookId) {
   })
   .then(r => r.json())
   .then(data => {
-    document.getElementById('log-cur-' + bookId).textContent = data.current_page;
+    input.value = data.current_page;
+    const bar = document.getElementById('prog-bar-' + bookId);
+    const label = document.getElementById('prog-label-' + bookId);
+    if (bar && label) {
+      if (totalPages) {
+        const pct = Math.min(100, Math.round(data.current_page / totalPages * 100));
+        bar.style.width = pct + '%';
+        label.textContent = pct + '%';
+      } else {
+        label.textContent = 'p.' + data.current_page;
+      }
+    }
     const msg = document.getElementById('log-msg-' + bookId);
     msg.classList.remove('hidden');
     setTimeout(() => msg.classList.add('hidden'), 2000);
