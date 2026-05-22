@@ -887,42 +887,35 @@ def api_reels_react():
         return jsonify({"error": "invalid"}), 400
 
     with db() as conn:
-        # Check existing
         existing = conn.execute(
-            "SELECT reaction FROM reel_reactions WHERE user_id=? AND reel_id=?",
-            (user_id, reel_id)
+            "SELECT id FROM reel_reactions WHERE user_id=? AND reel_id=? AND reaction=?",
+            (user_id, reel_id, reaction)
         ).fetchone()
 
         if existing:
-            if existing["reaction"] == reaction:
-                # Toggle off
-                conn.execute("DELETE FROM reel_reactions WHERE user_id=? AND reel_id=?",
-                             (user_id, reel_id))
-                if reaction == "like":
-                    conn.execute("UPDATE reels SET like_count = MAX(0, like_count-1) WHERE id=?", (reel_id,))
-                return jsonify({"action": "removed"})
-            else:
-                old = existing["reaction"]
-                conn.execute(
-                    "UPDATE reel_reactions SET reaction=? WHERE user_id=? AND reel_id=?",
-                    (reaction, user_id, reel_id)
-                )
-                if old == "like":
-                    conn.execute("UPDATE reels SET like_count=MAX(0,like_count-1) WHERE id=?", (reel_id,))
-                if reaction == "like":
-                    conn.execute("UPDATE reels SET like_count=like_count+1 WHERE id=?", (reel_id,))
+            # Toggle off
+            conn.execute("DELETE FROM reel_reactions WHERE user_id=? AND reel_id=? AND reaction=?",
+                         (user_id, reel_id, reaction))
+            if reaction == "like":
+                conn.execute("UPDATE reels SET like_count=MAX(0,like_count-1) WHERE id=?", (reel_id,))
+            action = "removed"
         else:
             conn.execute(
-                "INSERT INTO reel_reactions (user_id, reel_id, reaction) VALUES (?,?,?)",
+                "INSERT OR IGNORE INTO reel_reactions (user_id, reel_id, reaction) VALUES (?,?,?)",
                 (user_id, reel_id, reaction)
             )
             if reaction == "like":
                 conn.execute("UPDATE reels SET like_count=like_count+1 WHERE id=?", (reel_id,))
+            action = "set"
 
-        # Return new like count
         new_count = conn.execute("SELECT like_count FROM reels WHERE id=?", (reel_id,)).fetchone()["like_count"]
+        # Return current state of all reactions for this reel
+        my_reactions = {r["reaction"] for r in conn.execute(
+            "SELECT reaction FROM reel_reactions WHERE user_id=? AND reel_id=?", (user_id, reel_id)
+        ).fetchall()}
 
-    return jsonify({"action": "set", "reaction": reaction, "like_count": new_count})
+    return jsonify({"action": action, "reaction": reaction, "like_count": new_count,
+                    "liked": "like" in my_reactions, "saved": "save" in my_reactions})
 
 
 @app.route("/reels/create", methods=["POST"])
@@ -1230,7 +1223,7 @@ def clubs_room(club_id):
 
         # Update last_active
         conn.execute(
-            "UPDATE book_clubs SET last_active=unixepoch() WHERE id=?", (club_id,)
+            "UPDATE book_clubs SET last_active=CAST(strftime('%s','now') AS INTEGER) WHERE id=?", (club_id,)
         )
 
         messages = conn.execute("""

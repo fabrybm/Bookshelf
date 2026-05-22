@@ -386,12 +386,9 @@ function react(reelId, reaction, btn) {
     }
     const likeBtn = wrap.querySelector('.like-btn');
     const saveBtn = wrap.querySelector('.save-btn');
-    if (reaction === 'like') {
-      likeBtn?.classList.toggle('liked', data.action === 'set');
-    }
-    if (reaction === 'save') {
-      saveBtn?.classList.toggle('saved', data.action === 'set');
-    }
+    // Update both states independently from server response
+    if (likeBtn) likeBtn.classList.toggle('liked', data.liked);
+    if (saveBtn) saveBtn.classList.toggle('saved', data.saved);
     if (reaction === 'dislike') {
       const parent = wrap.closest('.reel-card-wrap');
       if (parent) {

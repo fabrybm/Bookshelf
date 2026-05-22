@@ -174,6 +174,28 @@ def init_db():
             );
         """)
 
+        # Migrate reel_reactions to allow multiple reactions per reel (like + save independent)
+        rr_idx = conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name='sqlite_autoindex_reel_reactions_1'").fetchone()
+        # Check if unique constraint is on (user_id, reel_id) — old schema — by checking the index sql
+        old_unique = conn.execute("""
+            SELECT sql FROM sqlite_master WHERE type='table' AND name='reel_reactions'
+        """).fetchone()
+        if old_unique and "UNIQUE(user_id, reel_id)" in (old_unique["sql"] or "").replace(" ", "").replace("\n",""):
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS reel_reactions_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    reel_id INTEGER NOT NULL REFERENCES reels(id) ON DELETE CASCADE,
+                    reaction TEXT NOT NULL CHECK(reaction IN ('like','dislike','save')),
+                    created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
+                    UNIQUE(user_id, reel_id, reaction)
+                );
+                INSERT OR IGNORE INTO reel_reactions_new (id,user_id,reel_id,reaction,created_at)
+                    SELECT id,user_id,reel_id,reaction,created_at FROM reel_reactions;
+                DROP TABLE reel_reactions;
+                ALTER TABLE reel_reactions_new RENAME TO reel_reactions;
+            """)
+
         # Add video_path column to existing reels table if missing
         cols = [r[1] for r in conn.execute("PRAGMA table_info(reels)").fetchall()]
         if "video_path" not in cols:
