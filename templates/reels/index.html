@@ -425,7 +425,7 @@ function togglePlay(video) {
 function buildReelCard(r) {
   const saved = SAVED_IDS.has(r.id);
   const videoHtml = r.video_path
-    ? `<video class="reel-video" src="/uploads/videos/${r.video_path}" muted loop playsinline
+    ? `<video class="reel-video" src="/static/uploads/videos/${r.video_path}" muted loop playsinline
          onclick="togglePlay(this)" preload="metadata"></video>
        <div class="play-overlay"><span>▶</span></div>
        <button class="mute-btn" onclick="event.stopPropagation();toggleMute()">🔇</button>`
@@ -452,10 +452,12 @@ function buildReelCard(r) {
           </div>
           ${r.content ? `<div style="font-size:14px;line-height:1.5;margin-bottom:8px;max-height:72px;overflow:hidden">${r.content}</div>` : ''}
           <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:0.85">
-            <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">
-              ${r.display_name[0].toUpperCase()}
-            </div>
-            ${r.display_name} · @${r.username}
+            <a href="/friends/${r.username}" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;min-width:0">
+              <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">
+                ${r.display_name[0].toUpperCase()}
+              </div>
+              ${r.display_name} · @${r.username}
+            </a>
             <a href="/books/add?title=${encodeURIComponent(r.book_title)}&author=${encodeURIComponent(r.book_author)}&cover_url=${encodeURIComponent(r.book_cover_url||'')}&genre=${encodeURIComponent(r.book_genre||'')}"
                style="margin-left:auto;background:rgba(255,255,255,0.9);color:#7c5c14;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;text-decoration:none">
               + Add to shelf

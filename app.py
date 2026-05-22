@@ -16,15 +16,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB upload limit
 
-# On Render, DB_PATH is /data/bookshelf.db — store uploads alongside it
-_data_dir = os.path.dirname(os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bookshelf.db")))
-UPLOAD_DIR = os.path.join(_data_dir, "videos")
+# Store videos in static/uploads/videos/ so they're served directly by the web server
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads", "videos")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# Serve uploaded videos (works locally; on Render the disk is at /data)
-@app.route("/uploads/videos/<path:filename>")
-def serve_video(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
 ALLOWED_VIDEO_EXT = {"mp4", "mov", "webm", "m4v", "mkv"}
 
 # ---------------------------------------------------------------------------
@@ -955,8 +949,12 @@ def reels_create():
             return redirect(url_for("reels_index"))
         filename = f"{uuid.uuid4().hex}.{ext}"
         save_path = os.path.join(UPLOAD_DIR, filename)
-        video_file.save(save_path)
-        video_path = filename  # stored as bare filename; served via /uploads/videos/<filename>
+        try:
+            video_file.save(save_path)
+            video_path = filename
+        except Exception as e:
+            flash(f"Video upload failed: {e}", "error")
+            return redirect(url_for("reels_index"))
 
     if not video_path and not caption:
         flash("Upload a video or add a caption.", "error")

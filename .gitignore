@@ -3,4 +3,8 @@ __pycache__/
 *.pyc
 .env
 ngrok
-static/uploads/videos/
+static/uploads/videos/*.mp4
+static/uploads/videos/*.mov
+static/uploads/videos/*.webm
+static/uploads/videos/*.mkv
+static/uploads/videos/*.m4v

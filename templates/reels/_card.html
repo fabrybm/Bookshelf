@@ -3,7 +3,7 @@
     <div class="reel-video-area">
 
       {% if reel.video_path %}
-      <video class="reel-video" src="/uploads/videos/{{ reel.video_path }}"
+      <video class="reel-video" src="/static/uploads/videos/{{ reel.video_path }}"
              muted loop playsinline preload="metadata"
              onclick="togglePlay(this)"></video>
       <div class="play-overlay"><span>▶</span></div>
@@ -48,10 +48,12 @@
         {% endif %}
 
         <div style="display:flex;align-items:center;gap:8px;font-size:13px;opacity:0.85">
-          <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">
-            {{ reel.display_name[0].upper() }}
-          </div>
-          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ reel.display_name }} · @{{ reel.username }}</span>
+          <a href="{{ url_for('friends_profile', username=reel.username) }}" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;min-width:0">
+            <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">
+              {{ reel.display_name[0].upper() }}
+            </div>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ reel.display_name }} · @{{ reel.username }}</span>
+          </a>
           <a href="{{ url_for('books_add') }}?title={{ reel.book_title | urlencode }}&author={{ reel.book_author | urlencode }}&cover_url={{ (reel.book_cover_url or '') | urlencode }}&genre={{ (reel.book_genre or '') | urlencode }}"
              style="margin-left:auto;background:rgba(255,255,255,0.9);color:#7c5c14;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;text-decoration:none;flex-shrink:0;white-space:nowrap">
             + Add
