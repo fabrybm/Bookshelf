@@ -204,6 +204,13 @@ def init_db():
             # Make content nullable by accepting empty — SQLite can't DROP NOT NULL
             pass
 
+        # Add age and gender columns to users if missing
+        user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "age" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN age INTEGER")
+        if "gender" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN gender TEXT")
+
         # Add milestone columns to book_clubs if missing
         club_cols = [r[1] for r in conn.execute("PRAGMA table_info(book_clubs)").fetchall()]
         if "milestone_label" not in club_cols:

@@ -26,12 +26,12 @@ def get_current_user():
         return None
     with db() as conn:
         return conn.execute(
-            "SELECT id, username, display_name FROM users WHERE id = ?",
+            "SELECT id, username, display_name, age, gender FROM users WHERE id = ?",
             (session["user_id"],)
         ).fetchone()
 
 
-def register_user(username: str, password: str, display_name: str):
+def register_user(username: str, password: str, display_name: str, age=None, gender=None):
     with db() as conn:
         existing = conn.execute(
             "SELECT id FROM users WHERE username = ?", (username.lower(),)
@@ -40,11 +40,11 @@ def register_user(username: str, password: str, display_name: str):
             return None, "Username already taken"
         try:
             conn.execute(
-                "INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)",
-                (username.lower(), hash_password(password), display_name or username)
+                "INSERT INTO users (username, password_hash, display_name, age, gender) VALUES (?, ?, ?, ?, ?)",
+                (username.lower(), hash_password(password), display_name or username, age, gender)
             )
             user = conn.execute(
-                "SELECT id, username, display_name FROM users WHERE username = ?",
+                "SELECT id, username, display_name, age, gender FROM users WHERE username = ?",
                 (username.lower(),)
             ).fetchone()
             return user, None

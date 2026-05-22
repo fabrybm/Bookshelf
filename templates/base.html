@@ -92,7 +92,10 @@
               <span class="hidden md:block">{{ session.display_name }}</span>
             </button>
             <div class="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-              <a href="{{ url_for('auth_logout') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-xl">
+              <a href="{{ url_for('settings') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl">
+                Settings
+              </a>
+              <a href="{{ url_for('auth_logout') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-b-xl">
                 Sign out
               </a>
             </div>

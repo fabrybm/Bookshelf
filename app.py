@@ -108,12 +108,15 @@ def auth_register():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         display_name = request.form.get("display_name", "").strip()
+        age_raw = request.form.get("age", "").strip()
+        gender = request.form.get("gender", "").strip() or None
+        age = int(age_raw) if age_raw.isdigit() else None
         if len(username) < 3:
             flash("Username must be at least 3 characters", "error")
         elif len(password) < 6:
             flash("Password must be at least 6 characters", "error")
         else:
-            user, error = register_user(username, password, display_name)
+            user, error = register_user(username, password, display_name, age=age, gender=gender)
             if error:
                 flash(error, "error")
             else:
@@ -128,6 +131,63 @@ def auth_register():
 def auth_logout():
     session.clear()
     return redirect(url_for("auth_login"))
+
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    user_id = session["user_id"]
+    with db() as conn:
+        user = conn.execute(
+            "SELECT id, username, display_name, age, gender FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if request.method == "POST":
+            display_name = request.form.get("display_name", "").strip()
+            new_username = request.form.get("username", "").strip().lower()
+            age_raw = request.form.get("age", "").strip()
+            gender = request.form.get("gender", "").strip() or None
+            new_password = request.form.get("new_password", "")
+            age = int(age_raw) if age_raw.isdigit() else None
+
+            if len(new_username) < 3:
+                flash("Username must be at least 3 characters", "error")
+            elif new_username != user["username"]:
+                taken = conn.execute(
+                    "SELECT id FROM users WHERE username = ? AND id != ?", (new_username, user_id)
+                ).fetchone()
+                if taken:
+                    flash("That username is already taken", "error")
+                    return render_template("settings.html", user=user)
+                else:
+                    conn.execute(
+                        "UPDATE users SET username=?, display_name=?, age=?, gender=? WHERE id=?",
+                        (new_username, display_name or user["display_name"], age, gender, user_id)
+                    )
+                    session["username"] = new_username
+                    session["display_name"] = display_name or user["display_name"]
+            else:
+                conn.execute(
+                    "UPDATE users SET display_name=?, age=?, gender=? WHERE id=?",
+                    (display_name or user["display_name"], age, gender, user_id)
+                )
+                session["display_name"] = display_name or user["display_name"]
+
+            if new_password:
+                if len(new_password) < 6:
+                    flash("New password must be at least 6 characters", "error")
+                    return render_template("settings.html", user=user)
+                from auth import hash_password
+                conn.execute(
+                    "UPDATE users SET password_hash=? WHERE id=?",
+                    (hash_password(new_password), user_id)
+                )
+
+            flash("Settings saved", "success")
+            user = conn.execute(
+                "SELECT id, username, display_name, age, gender FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+
+    return render_template("settings.html", user=user)
 
 
 # ---------------------------------------------------------------------------
@@ -721,6 +781,29 @@ def api_search():
 # API: Recommendations
 # ---------------------------------------------------------------------------
 
+def _age_genre_hints(age, gender):
+    """Return extra genre slugs to blend in based on age and gender."""
+    hints = []
+    if age is not None:
+        if age < 14:
+            hints += ["childrens_literature", "middle_grade"]
+        elif age < 20:
+            hints += ["young_adult", "coming_of_age"]
+        elif age < 30:
+            hints += ["young_adult", "contemporary_fiction"]
+        elif age < 50:
+            hints += ["literary_fiction", "thriller"]
+        else:
+            hints += ["historical_fiction", "biography"]
+    if gender:
+        g = gender.lower()
+        if g == "female":
+            hints += ["womens_fiction", "romance"]
+        elif g == "male":
+            hints += ["adventure", "action"]
+    return hints
+
+
 @app.route("/api/recommendations")
 @login_required
 def api_recommendations():
@@ -738,17 +821,33 @@ def api_recommendations():
             "SELECT ol_key FROM books WHERE user_id = ? AND ol_key IS NOT NULL", (user_id,)
         ).fetchall()}
 
-    if not top_genres:
-        return jsonify([])
+        user_row = conn.execute(
+            "SELECT age, gender FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+
+    age = user_row["age"] if user_row else None
+    gender = user_row["gender"] if user_row else None
+
+    # Build genre list: user's top genres + up to 2 age/gender hints
+    genre_list = [r["genre"] for r in top_genres]
+    hints = _age_genre_hints(age, gender)
+    random.shuffle(hints)
+    for h in hints[:2]:
+        display = h.replace("_", " ").title()
+        if display not in genre_list:
+            genre_list.append(display)
+
+    if not genre_list:
+        resp = make_response(jsonify([]))
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     results = []
     seen_keys = set(existing_keys)
 
-    for genre_row in top_genres:
-        genre = genre_row["genre"]
+    for genre in genre_list:
         try:
             encoded = urllib.parse.quote(genre.lower().replace(" ", "_"))
-            # Randomize page offset so each call gets different books
             page_offset = random.randint(0, 40)
             url = f"https://openlibrary.org/subjects/{encoded}.json?limit=30&offset={page_offset}"
             req = urllib.request.Request(url, headers={"User-Agent": "Bookshelf/1.0"})
